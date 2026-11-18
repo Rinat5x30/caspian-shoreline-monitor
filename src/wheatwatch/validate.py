@@ -24,6 +24,8 @@ Verdict = Literal["weak", "moderate", "strong"]
 
 @dataclass(frozen=True)
 class ValidationReport:
+    """n_dropped counts held-out region-years only; training rows with NaN are not counted."""
+
     pearson_r: float
     rmse_pct: float
     hit_rate: float

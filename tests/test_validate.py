@@ -9,8 +9,10 @@ from wheatwatch.validate import (
     loyo_validate,
     validate_with_sensitivity,
 )
+from wheatwatch.yields import detrended_anomaly_pct
 
 YEARS = list(range(2020, 2026))
+KEYS = ["region_id", "year"]
 RAW = ["ndvi_peak", "precip_mm", "tmax_mean_c"]
 
 
@@ -105,7 +107,7 @@ def test_trend_not_positive_region_year_is_dropped() -> None:
     yields = yields.copy()
     yields.loc[yields["region_id"] == "r05", "yield_c_ha"] = [10.0, 8.0, 6.0, 4.0, 2.0, 1.0]
     report = loyo_validate(features, yields, single_predictor=True)
-    assert report.n_dropped >= 1
+    assert report.n_dropped == 1
     assert np.isfinite(report.pearson_r) and np.isfinite(report.rmse_pct)
 
 
@@ -166,15 +168,38 @@ def test_heldout_year_not_in_training() -> None:
     )
 
 
-def test_heldout_year_features_do_not_move_other_folds_training_fit() -> None:
+def _expected_heldout_prediction(
+    features: pd.DataFrame, yields: pd.DataFrame, held_out: int
+) -> pd.Series:
+    train_years = [y for y in sorted(features["year"].unique()) if y != held_out]
+    train = features[features["year"].isin(train_years)]
+    mean = train.groupby("region_id")[RAW].mean()
+    std = train.groupby("region_id")[RAW].std(ddof=0)
+    z = (features[RAW].to_numpy() - mean.loc[features["region_id"]].to_numpy()) / std.loc[
+        features["region_id"]
+    ].to_numpy()
+    index = pd.Series(z[:, 0] + z[:, 1] - z[:, 2], index=features.index) / 3
+    anomaly = detrended_anomaly_pct(
+        features[KEYS].merge(yields, on=KEYS, how="left"), list(train_years)
+    )
+    is_train = features["year"].isin(train_years).to_numpy()
+    design = np.column_stack([np.ones(is_train.sum()), index[is_train]])
+    a, b = np.linalg.lstsq(design, anomaly[is_train].to_numpy(), rcond=None)[0]
+    test = ~is_train
+    return pd.Series(a + b * index[test].to_numpy(), index=features.loc[test, "region_id"])
+
+
+def test_heldout_prediction_uses_training_only_parameters() -> None:
     features, yields = _known_relation()
-    changed = features.copy()
-    changed.loc[changed["year"] == 2025, RAW] *= 5.0
-    base = validate._loyo_predictions(features, yields, True, frozenset())[0]
-    other = validate._loyo_predictions(changed, yields, True, frozenset())[0]
-    a = base.query("year == 2025")["predicted"].to_numpy()
-    b = other.query("year == 2025")["predicted"].to_numpy()
-    assert not np.allclose(a, b)
+    features = features.copy()
+    boosted = (features["region_id"] == "r03") & (features["year"] == 2025)
+    features.loc[boosted, RAW] *= 5.0
+    got = validate._loyo_predictions(features, yields, True, frozenset())[0]
+    got_2025 = got.query("year == 2025").set_index("region_id")["predicted"]
+    expected = _expected_heldout_prediction(features, yields, 2025)
+    pd.testing.assert_series_equal(
+        got_2025.sort_index(), expected.sort_index(), check_names=False, rtol=1e-9
+    )
 
 
 def test_exclude_ids_reduces_n_regions() -> None:
