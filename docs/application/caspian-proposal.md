@@ -8,29 +8,31 @@ I am a student, building this with an AI coding assistant. No external organisat
 
 ## 1. Problem
 
-The Caspian Sea, the world's largest inland water body, has been falling. A May 2026 Euronews report describes "a consistent downward trend since the mid 1990s" and notes that along parts of Azerbaijan's coastline, including low-lying areas of the Absheron Peninsula, "even small reductions in water level can lead to large areas of exposed seabed". A 2024 EGU abstract on the Gizil-Aghaj State Reserve (Ahadov, Kadirov and Fielding) reports the sea receding to expose an additional 218 km2 of land over 2014-2023, using optical and radar satellite data. A 2021 study of the Kura sub-region (Gasimov, Acta Geodynamica et Geomaterialia) links a sea-level drop of 1.39 m in 1996-2019 to accumulation of land and a 35 % reduction of coastline length.
+The Caspian Sea, which Euronews calls the world's largest lake, has been falling. A May 2026 Euronews report describes "a consistent downward trend since the mid 1990s" and notes that along parts of Azerbaijan's coastline, including low-lying areas of the Absheron Peninsula, "even small reductions in water level can lead to large areas of exposed seabed". A 2024 EGU abstract on the Gizil-Aghaj State Reserve (Ahadov, Kadirov and Fielding) reports the sea receding to expose an additional 218 km2 of land over 2014-2023, using optical and radar satellite data. A 2021 study of the Kura sub-region (Gasimov, Acta Geodynamica et Geomaterialia) links a sea-level drop of 1.39 m in 1996-2019 to accumulation of land and a 35 % reduction of coastline length.
 
 In our own data, the July-October mean level in the NASA G-REALM Caspian altimetry series changed by -2.135 m between 2000 and 2025 (from +0.162 m to -1.974 m). This is a relative level change in our G-REALM series, measured against a satellite reference, not an absolute height.
 
-For coastal communities, infrastructure and ecosystems, a falling sea means moving shorelines. Adaptation planning needs a transparent way to see where the shoreline moves, and how much of it is explained by the level drop.
+For coastal communities, infrastructure and ecosystems, a falling sea means moving shorelines. Adaptation planning needs a transparent way to see where the shoreline moves. The question this project sets out to test is how much of that movement is explained by the level drop.
 
 ## 2. Solution
 
-An open, repeatable monitor of Caspian shoreline retreat off Azerbaijan. It maps yearly shorelines from satellite imagery, tests them against independent altimetry sea level under a rule fixed in advance, and publishes a static interactive map: shorelines by year with an animated time slider, a card for every site, a chart of level versus shoreline position, and a verdict badge that is always visible, including when the verdict is negative or inconclusive.
+The planned solution is an open, repeatable monitor of Caspian shoreline retreat off Azerbaijan. It will map yearly shorelines from satellite imagery, test them against independent altimetry sea level under a rule fixed in advance, and publish a static interactive map. The planned map will show shorelines by year with an animated time slider, a card for every site, a chart of level versus shoreline position, and a verdict badge that is always visible, including when the verdict is negative or inconclusive. None of these map elements is finished yet.
 
 Honest novelty: the topic is already studied (see the EGU abstract and Gasimov above). Our contribution is not a new discovery. It is an open tool that anyone can re-run for a new year, with a pre-registered success test, so that a weak result is reported as weak.
 
 ## 3. Method
 
-- Shorelines: Landsat Collection 2 composites for each year 2000-2025 (30 m), plus Sentinel-2 (10 m, from 2017) for the current shoreline and a cross-check. Imagery is read from Microsoft Planetary Computer without an account.
-- Water mapping: a water index (MNDWI) on a single fixed two-month season within July-October, chosen from scene-metadata cloudiness only, before looking at any water or level data.
+The method is planned and its rules are fixed in advance.
+
+- Shorelines: Landsat Collection 2 composites for each year 2000-2025 (30 m), plus Sentinel-2 (10 m, from 2017) for the current shoreline and a cross-check. Imagery will be read from Microsoft Planetary Computer without an account.
+- Water mapping: a water index (MNDWI) on a single fixed two-month season within July-October. The season is not chosen yet; it will be chosen by a rule (lowest median cloudiness in scene metadata over the whole period), before looking at any water or level data.
 - Shoreline position: the mean signed distance of the waterline from a fixed reference line along cross-shore profiles, in metres (positive means the sea retreats).
-- Sites: at least three, chosen by a written rule (gently sloping, no vegetation, no delta waterlogging) before the relationship is examined. Delta sites are allowed but marked.
-- Quality control: Landsat versus Sentinel-2 shorelines over 2017-2025; a median disagreement above 30 m (one Landsat pixel) flags the site. The map shows an uncertainty of at least 30 m.
+- Sites: at least three, to be chosen by a written rule (gently sloping, no vegetation, no delta waterlogging) before the relationship is examined. Delta sites are allowed but will be marked.
+- Quality control: Landsat versus Sentinel-2 shorelines over 2017-2025; a median disagreement above 30 m (one Landsat pixel) will flag the site. The map will show an uncertainty of at least 30 m.
 
 ## 4. Data and its limits
 
-Sea level comes from the NASA GSFC G-REALM Caspian series (10-day altimetry, file lake000270.10d.2.txt). It is open, needs no account, and has no explicit licence; the project states that accuracy and application of the products are not guaranteed. Heights are relative to the mean level of a Jason-2 reference pass, so we work only with changes, never absolute heights. For July-October, 26 of 26 years (2000-2025) have at least three observation dates. We checked the series for steps at mission boundaries and found none above 0.09 m, comparable to noise. Altimetry over an inland sea can be affected by wind and seiches, and the product itself flags winter ice.
+Sea level comes from the NASA GSFC G-REALM Caspian series (10-day altimetry, file lake000270.10d.2.txt). It is open, needs no account, and has no explicit licence; the project states that accuracy and application of the products are not guaranteed. Heights are relative to the mean level of a Jason-2 reference pass, so we work only with changes, never absolute heights. For July-October, 26 of 26 years (2000-2025) have at least three observation dates. We checked the series for steps: at mission boundaries, none above 0.09 m, comparable to noise (a few isolated 0.20 m flags elsewhere sit at the noise tail). Altimetry over an inland sea can be affected by wind and seiches, and the product itself flags winter ice.
 
 ## 5. Pre-registered success criterion
 
