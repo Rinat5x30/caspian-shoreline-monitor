@@ -1,4 +1,6 @@
+import hashlib
 import logging
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -6,13 +8,18 @@ import pytest
 
 from caspianwatch.level import (
     GATE_MIN_YEARS,
+    GREALM_URL,
+    RAW_PATH,
     InsufficientLevelData,
     check_gate,
     detect_jumps,
+    load_grealm_caspian,
+    mission_offsets,
     parse_grealm,
     season_level,
     usable_years,
 )
+from wheatwatch.climate import HttpStatusError
 
 HEADER = """\
 TPJOJS.2.5                 : Data Processing Version ID
@@ -108,11 +115,136 @@ def test_check_gate_raises_below_15_years() -> None:
     check_gate(list(range(2000, 2015)))
 
 
+def test_season_level_averages_missions_per_date_and_counts_dates() -> None:
+    two_dates = _frame([("2010-07-05", 1.0), ("2010-07-05", 3.0), ("2010-08-05", 2.0)])
+    assert pd.isna(season_level(two_dates, 2010, (7, 10)))
+    three = _frame(
+        [("2010-07-05", 1.0), ("2010-07-05", 3.0), ("2010-08-05", 2.0), ("2010-09-05", 6.0)]
+    )
+    assert season_level(three, 2010, (7, 10)) == pytest.approx((2.0 + 2.0 + 6.0) / 3)
+
+
 def test_detect_jumps_flags_step_between_missions() -> None:
-    rows = [(f"2015-{m:02d}-10", -0.8 + 0.01 * m) for m in range(1, 7)]
-    rows += [(f"2016-{m:02d}-10", -0.2 + 0.01 * m) for m in range(1, 4)]
-    jumps = detect_jumps(_frame(rows), threshold_m=0.3)
-    assert jumps == [pd.Timestamp("2016-01-10")]
+    base = pd.Timestamp("2015-01-01")
+    rows = [
+        (str((base + pd.Timedelta(days=10 * k)).date()), -0.8 if k < 6 else -0.2) for k in range(10)
+    ]
+    assert detect_jumps(_frame(rows), threshold_m=0.3) == [pd.Timestamp("2015-03-02")]
+
+
+def test_detect_jumps_ignores_gap_and_same_date_offsets() -> None:
+    days = [0, 10, 20, 30, 40, 100, 110, 120, 130, 140]
+    base = pd.Timestamp("2015-01-01")
+    rows = [(str((base + pd.Timedelta(days=d)).date()), 0.001 * d) for d in days]
+    rows += [(rows[2][0], rows[2][1] + 0.25), (rows[7][0], rows[7][1] - 0.25)]
+    assert detect_jumps(_frame(rows), threshold_m=0.2) == []
+
+
+def test_detect_jumps_flags_real_step_on_irregular_axis_once() -> None:
+    days = [0, 10, 20, 30, 45, 50, 60, 75, 80, 90, 100]
+    base = pd.Timestamp("2015-01-01")
+    rows = [(str((base + pd.Timedelta(days=d)).date()), 0.0 if d < 60 else -0.4) for d in days]
+    assert detect_jumps(_frame(rows), threshold_m=0.2) == [pd.Timestamp("2015-03-02")]
+
+
+def test_detect_jumps_is_deterministic_on_ties() -> None:
+    rows = [(f"2015-01-{d:02d}", 0.0) for d in (1, 11, 21)]
+    rows += [("2015-02-10", -0.5), ("2015-02-10", -0.5), ("2015-02-20", -0.5), ("2015-03-02", -0.5)]
+    frame = _frame(rows)
+    assert detect_jumps(frame, 0.2) == detect_jumps(frame.iloc[::-1], 0.2)
+
+
+def test_parse_keeps_mission_column() -> None:
+    frame, _ = parse_grealm(_text([_row("JASN3", 1, "20170102", -0.8)]))
+    assert frame["mission"].tolist() == ["JASN3"]
+
+
+def _mframe(rows: list[tuple[str, str, float]]) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "date": pd.to_datetime([r[0] for r in rows]),
+            "mission": [r[1] for r in rows],
+            "level_m": [r[2] for r in rows],
+        }
+    )
+
+
+def test_mission_offsets_reports_same_date_and_transition() -> None:
+    rows = [(f"2015-01-{d:02d}", "JASN2", 0.0) for d in (1, 11, 21, 31)]
+    rows += [("2015-02-10", "JASN2", 0.0), ("2015-02-10", "JASN3", 0.3)]
+    rows += [(f"2015-02-{d:02d}", "JASN3", 0.3) for d in (20, 28)]
+    rows += [("2015-03-10", "JASN3", 0.3)]
+    out = mission_offsets(_mframe(rows))
+    same = out[out["kind"] == "same_date"].iloc[0]
+    assert (same["mission_a"], same["mission_b"], same["n"]) == ("JASN2", "JASN3", 1)
+    assert same["median_m"] == pytest.approx(0.3)
+    trans = out[out["kind"] == "transition"].iloc[0]
+    assert (trans["mission_a"], trans["mission_b"]) == ("JASN2", "JASN3")
+    assert trans["median_m"] == pytest.approx(0.3)
+
+
+def _good_text() -> str:
+    rows = [
+        _row("JASN2", i, f"2016{(i - 1) // 28 + 1:02d}{(i - 1) % 28 + 1:02d}", -0.5)
+        for i in range(1, 121)
+    ]
+    return _text(rows)
+
+
+def _no_fetch(url: str) -> bytes:
+    raise AssertionError("must not fetch")
+
+
+def test_load_uses_valid_cache_without_fetch(tmp_path: Path) -> None:
+    path = tmp_path / "g.txt"
+    path.write_text(_good_text(), encoding="ascii")
+    assert len(load_grealm_caspian(path, fetch=_no_fetch)) == 120
+
+
+def test_load_refetches_truncated_cache(tmp_path: Path) -> None:
+    path = tmp_path / "g.txt"
+    good = _good_text()
+    path.write_text(good[: len(good) // 2], encoding="ascii")
+    frame = load_grealm_caspian(path, fetch=lambda url: good.encode("ascii"))
+    assert len(frame) == 120 and path.read_text(encoding="ascii") == good
+
+
+def test_truncated_download_raises_and_keeps_previous_file(tmp_path: Path) -> None:
+    path = tmp_path / "g.txt"
+    old = _good_text() + "extra-line-not-valid" + chr(10)
+    path.write_text(old, encoding="ascii")
+    good = _good_text()
+    with pytest.raises(ValueError):
+        load_grealm_caspian(path, fetch=lambda url: good[:-40].encode("ascii"))
+    assert path.read_text(encoding="ascii") == old
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_failed_fetch_keeps_previous_file_and_caches_nothing(tmp_path: Path) -> None:
+    path = tmp_path / "g.txt"
+    old = _good_text() + "extra-line-not-valid" + chr(10)
+    path.write_text(old, encoding="ascii")
+
+    def missing(url: str) -> bytes:
+        raise HttpStatusError(404)
+
+    with pytest.raises(HttpStatusError):
+        load_grealm_caspian(path, fetch=missing)
+    assert path.read_text(encoding="ascii") == old
+    fresh = tmp_path / "fresh.txt"
+    with pytest.raises(HttpStatusError):
+        load_grealm_caspian(fresh, fetch=missing)
+    assert not fresh.exists()
+
+
+def test_default_path_is_committed_file_and_hash_matches_sources() -> None:
+    assert RAW_PATH.name == "lake000270.10d.2.txt" and GREALM_URL.endswith(RAW_PATH.name)
+    frame = load_grealm_caspian(fetch=_no_fetch)
+    assert len(frame) > 1000
+    sources = (RAW_PATH.parent / "SOURCES.md").read_text(encoding="utf-8")
+    match = re.search(r"sha256: `([0-9a-f]{64})`", sources)
+    assert match is not None
+    assert hashlib.sha256(RAW_PATH.read_bytes()).hexdigest() == match.group(1)
 
 
 def test_get_with_retry_retries_5xx_but_not_4xx() -> None:
@@ -145,3 +277,21 @@ def test_atomic_write_leaves_no_part_file(tmp_path: Path) -> None:
     atomic_write(target, b"abc")
     assert target.read_bytes() == b"abc"
     assert not list(target.parent.glob("*.part"))
+
+
+def test_importing_caspianwatch_does_not_load_heavy_geo_stack() -> None:
+    import subprocess
+    import sys
+
+    code = (
+        "import sys, caspianwatch.level; "
+        "print('rasterio' in sys.modules or 'geopandas' in sys.modules)"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**__import__("os").environ, "PYTHONPATH": "src"},
+    )
+    assert out.stdout.strip() == "False"
