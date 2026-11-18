@@ -6,6 +6,8 @@ MNDWI on a common 30 m EPSG:32639 grid; same-date tiles are mosaicked; the compo
 per-pixel median over the valid observations; pixels with fewer than MIN_OBSERVATIONS valid
 observations are no data (valid False), neither land nor water. Water = MNDWI > Otsu threshold
 clipped to THRESHOLD_BOUNDS. The QA water bit (7) is not used for classification.
+Landsat tiles are on 30 m grids whose pixel edges sit 15 m off this grid, so bilinear resampling of
+reflectance averages about 2x2 source pixels (fill excluded from the kernel); QA is nearest only.
 """
 
 import calendar
@@ -70,7 +72,7 @@ BAND_NAMES: dict[str, tuple[str, str]] = {
     "landsat-9": ("SR_B3", "SR_B6"),
 }
 ASSET_KEYS = ("green", "swir16", "qa_pixel")
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,9 @@ class WaterMask:
     n_scenes: int
     valid: NDArray[np.bool_]
     threshold: float
+    composite_valid_fraction: float
+    date_valid_fractions: tuple[float, ...]
+    mndwi: NDArray[np.float32] | None
 
 
 @dataclass(frozen=True)
@@ -244,6 +249,7 @@ def _settings(season: Season, grid: Grid) -> dict[str, Any]:
                 "same_date": "mosaic, first valid tile in scene id order",
                 "qa_bits": list(QA_BITS),
                 "water_bit_used": False,
+                "mndwi_stored": True,
                 "bands": {k: list(v) for k, v in BAND_NAMES.items()},
                 "scale": SCALE,
                 "offset": OFFSET,
@@ -264,16 +270,21 @@ def _path(cache_dir: Path, site: Site, year: int) -> Path:
     return cache_dir / f"landsat_water_{site.site_id}_{year}.npz"
 
 
-def _load(path: Path) -> tuple[dict[str, Any], BoolArray, BoolArray] | None:
+def _load(path: Path) -> tuple[dict[str, Any], BoolArray, BoolArray, NDArray[np.float32]] | None:
     try:
         with np.load(path, allow_pickle=False) as data:
             meta = json.loads(str(data["meta"]))
             water, valid = np.asarray(data["water"]), np.asarray(data["valid"])
+            mndwi = np.asarray(data["mndwi"])
     except (OSError, ValueError, KeyError, TypeError, EOFError, zipfile.BadZipFile):
         return None
     if water.dtype != np.bool_ or valid.dtype != np.bool_ or water.shape != valid.shape:
         return None
-    return meta, water, valid
+    if mndwi.dtype != np.float32 or mndwi.shape != valid.shape:
+        return None
+    if not np.array_equal(np.isnan(mndwi), ~valid):
+        return None
+    return meta, water, valid, mndwi
 
 
 def read_record(cache_dir: Path, site: Site, year: int) -> dict[str, Any]:
@@ -289,21 +300,26 @@ def _read_cache(
     loaded = _load(path)
     if loaded is None:
         return None
-    meta, water, valid = loaded
+    meta, water, valid, mndwi = loaded
     try:
         threshold = float(meta["threshold"])
         n_scenes = int(meta["n_scenes"])
+        fractions = tuple(float(f) for f in meta["date_valid_fractions"])
+        composite_fraction = float(meta["composite_valid_fraction"])
         same = (
             meta["settings"] == settings
             and meta["site_id"] == site.site_id
             and meta["year"] == year
             and len(meta["dates"]) == n_scenes
+            and len(fractions) == n_scenes
         )
     except (KeyError, TypeError, ValueError):
         return None
     if not same or not np.isfinite(threshold) or water.shape != (grid.height, grid.width):
         return None
-    return WaterMask(water, grid.transform, CRS, n_scenes, valid, threshold)
+    return WaterMask(
+        water, grid.transform, CRS, n_scenes, valid, threshold, composite_fraction, fractions, mndwi
+    )
 
 
 def _write_cache(
@@ -323,9 +339,18 @@ def _write_cache(
         "n_scenes": mask.n_scenes,
         "dates": [d.isoformat() for d in dates],
         "scene_ids": sorted(r.scene_id for r in refs if r.day in set(dates)),
+        "date_valid_fractions": list(mask.date_valid_fractions),
+        "composite_valid_fraction": mask.composite_valid_fraction,
+        "dates_without_valid_pixels": sorted(
+            {r.day.isoformat() for r in refs if r.day not in set(dates)}
+        ),
     }
+    if mask.mndwi is None:
+        raise ValueError("mask has no MNDWI to cache")
     buffer = io.BytesIO()
-    np.savez_compressed(buffer, water=mask.water, valid=mask.valid, meta=json.dumps(meta))
+    np.savez_compressed(
+        buffer, water=mask.water, valid=mask.valid, mndwi=mask.mndwi, meta=json.dumps(meta)
+    )
     atomic_write(path, buffer.getvalue())
 
 
@@ -402,12 +427,14 @@ def season_water_mask(
         return None
     layers: list[Layer] = []
     used: list[date] = []
+    fractions: list[float] = []
     for day, tiles in by_day.items():
         tile_layers = [scene_mndwi(retry(partial(read, ref, grid), sleep)) for ref in tiles]
         layer = mosaic_same_date(tile_layers)
         if layer[1].any():
             layers.append(layer)
             used.append(day)
+            fractions.append(float(layer[1].mean()))
     if len(used) < MIN_SCENES:
         return None
     median, valid = composite_mndwi(layers)
@@ -415,7 +442,17 @@ def season_water_mask(
         return None
     threshold = otsu_threshold(median[valid])
     water = valid & (np.where(valid, median, -np.inf) > threshold)
-    mask = WaterMask(water, grid.transform, CRS, len(used), valid, threshold)
+    mask = WaterMask(
+        water,
+        grid.transform,
+        CRS,
+        len(used),
+        valid,
+        threshold,
+        float(valid.mean()),
+        tuple(fractions),
+        median.astype(np.float32),
+    )
     _write_cache(path, settings, site, year, mask, chosen, used)
     return mask
 

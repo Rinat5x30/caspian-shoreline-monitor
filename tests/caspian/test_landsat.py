@@ -6,7 +6,10 @@ from typing import Any
 
 import numpy as np
 import pytest
+import rasterio
 from numpy.typing import NDArray
+from rasterio.enums import Resampling
+from rasterio.transform import Affine
 from shapely.geometry import LineString
 
 from caspianwatch import landsat
@@ -481,3 +484,251 @@ def test_record_file_is_json_free_of_nan(tmp_path: Path) -> None:
     record = landsat.read_record(tmp_path, _site(), 2012)
     assert np.isfinite(record["threshold"])
     json.dumps(record["settings"])
+
+
+def _write_tif(
+    path: Path,
+    data: NDArray[Any],
+    crs: str,
+    transform: Affine,
+    nodata: int | None,
+) -> str:
+    with rasterio.open(
+        path,
+        "w",
+        driver="GTiff",
+        height=data.shape[0],
+        width=data.shape[1],
+        count=1,
+        dtype=data.dtype,
+        crs=crs,
+        transform=transform,
+        nodata=nodata,
+    ) as dst:
+        dst.write(data, 1)
+    return str(path)
+
+
+def _truth(grid: Grid) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.uint16]]:
+    bands = _bands(grid)
+    qa = np.zeros(bands.qa.shape, dtype=np.uint16)
+    qa[8:14, 8:14] = 1 << 3
+    return bands.green_dn, bands.swir_dn, qa
+
+
+def _shifted_source(tmp_path: Path, grid: Grid, dx: float, dy: float) -> SceneRef:
+    green, swir, qa = _truth(grid)
+    pad = 4
+    transform = Affine(30.0, 0.0, grid.x0 - pad * 30.0 + dx, 0.0, -30.0, grid.y0 + pad * 30.0 + dy)
+
+    def padded(arr: NDArray[Any], fill: int) -> NDArray[Any]:
+        out = np.full((arr.shape[0] + 2 * pad, arr.shape[1] + 2 * pad), fill, dtype=arr.dtype)
+        out[pad:-pad, pad:-pad] = arr
+        return out
+
+    crs = "EPSG:32639"
+    hrefs = {
+        "green": _write_tif(
+            tmp_path / "g.tif", padded(green.astype(np.uint16), 0), crs, transform, 0
+        ),
+        "swir16": _write_tif(
+            tmp_path / "s.tif", padded(swir.astype(np.uint16), 0), crs, transform, 0
+        ),
+        "qa_pixel": _write_tif(tmp_path / "q.tif", padded(qa, 1), crs, transform, None),
+    }
+    return SceneRef("src", date(2012, 7, 3), "landsat-8", 5.0, "T1", hrefs)
+
+
+def test_read_scene_half_pixel_offset_keeps_qa_values_and_grid(tmp_path: Path) -> None:
+    grid = site_grid(_site())
+    ref = _shifted_source(tmp_path, grid, 15.0, -15.0)
+    bands = landsat._read_scene(ref, grid)
+    assert bands.green_dn.shape == bands.swir_dn.shape == bands.qa.shape
+    assert bands.qa.shape == (grid.height, grid.width)
+    assert set(np.unique(bands.qa).tolist()) <= {0, 1, 1 << 3}
+    _, _, qa = _truth(grid)
+    inner = (slice(2, -2), slice(2, -2))
+    assert (bands.qa[inner] == qa[inner]).mean() > 0.95
+    water_dn, land_dn = float(_dn(GREEN_WATER)[()]), float(_dn(GREEN_LAND)[()])
+    assert bands.green_dn[bands.green_dn > 0].min() >= min(water_dn, land_dn) - 1e-6
+    sea = _sea_east(grid)
+    edge = int(np.argmax(sea[0]))
+    sea[:, : edge + 3] = False
+    assert np.allclose(bands.green_dn[inner][sea[inner]], water_dn)
+
+
+def test_read_scene_fill_never_leaks_into_reflectance(tmp_path: Path) -> None:
+    grid = site_grid(_site())
+    ref = _shifted_source(tmp_path, grid, 15.0, 15.0)
+    with rasterio.open(ref.hrefs["green"], "r+") as ds:
+        arr = ds.read(1)
+        arr[20:30, 20:30] = 0
+        ds.write(arr, 1)
+    bands = landsat._read_scene(ref, grid)
+    low = float(min(_dn(GREEN_WATER)[()], _dn(GREEN_LAND)[()]))
+    assert bands.green_dn[bands.green_dn > 0].min() >= low - 1e-6
+    assert (bands.green_dn == 0).sum() > 0
+    _, valid = scene_mndwi(bands)
+    assert not valid[bands.green_dn == 0].any()
+
+
+def test_read_scene_from_other_utm_zone_round_trips(tmp_path: Path) -> None:
+    from pyproj import Transformer
+    from rasterio.warp import reproject
+
+    grid = site_grid(_site())
+    green, swir, qa = _truth(grid)
+    to38 = Transformer.from_crs("EPSG:32639", "EPSG:32638", always_xy=True)
+    x38, y38 = to38.transform(grid.x0 + grid.width * 15.0, grid.y0 - grid.height * 15.0)
+    size = int(max(grid.width, grid.height) * 1.5)
+    dst_transform = Affine(30.0, 0.0, x38 - size * 15.0, 0.0, -30.0, y38 + size * 15.0)
+
+    def to_zone38(arr: NDArray[Any], fill: int) -> NDArray[np.uint16]:
+        out = np.full((size, size), fill, dtype=np.uint16)
+        reproject(
+            arr.astype(np.uint16),
+            out,
+            src_transform=grid.transform,
+            src_crs="EPSG:32639",
+            dst_transform=dst_transform,
+            dst_crs="EPSG:32638",
+            resampling=Resampling.nearest,
+            init_dest_nodata=False,
+        )
+        return out
+
+    crs = "EPSG:32638"
+    hrefs = {
+        "green": _write_tif(tmp_path / "g.tif", to_zone38(green, 0), crs, dst_transform, 0),
+        "swir16": _write_tif(tmp_path / "s.tif", to_zone38(swir, 0), crs, dst_transform, 0),
+        "qa_pixel": _write_tif(tmp_path / "q.tif", to_zone38(qa, 1), crs, dst_transform, None),
+    }
+    ref = SceneRef("z38", date(2012, 7, 3), "landsat-8", 5.0, "T1", hrefs)
+    bands = landsat._read_scene(ref, grid)
+    assert bands.qa.shape == (grid.height, grid.width)
+    assert set(np.unique(bands.qa).tolist()) <= {0, 1, 1 << 3}
+    inner = (slice(3, -3), slice(3, -3))
+    assert (bands.qa[inner] == qa[inner]).mean() > 0.9
+    assert (np.abs(bands.green_dn[inner] - green[inner]) < 1).mean() > 0.9
+    mndwi, valid = scene_mndwi(bands)
+    assert valid[inner].mean() > 0.9
+    water = valid & (mndwi > 0.3)
+    assert (water[inner] == _sea_east(grid)[inner]).mean() > 0.9
+
+
+def test_real_read_path_end_to_end_and_empty_footprint_date_not_counted(tmp_path: Path) -> None:
+    grid = site_grid(_site())
+    refs = []
+    for n, day in enumerate((3, 12, 20)):
+        folder = tmp_path / f"s{n}"
+        folder.mkdir()
+        src = _shifted_source(folder, grid, 15.0, 15.0)
+        refs.append(SceneRef(f"S{day}", date(2012, 7, day), "landsat-8", 5.0, "T1", src.hrefs))
+    far = tmp_path / "far"
+    far.mkdir()
+    off = _shifted_source(far, grid, 500_000.0, 0.0)
+    refs.append(SceneRef("OFF", date(2012, 8, 1), "landsat-8", 5.0, "T1", off.hrefs))
+    result = season_water_mask(
+        _site(),
+        2012,
+        SEASON,
+        search=Fakes(refs).search,
+        read=landsat._read_scene,
+        sleep=lambda _s: None,
+        cache_dir=tmp_path / "cache",
+    )
+    assert result is not None
+    assert result.n_scenes == 3
+    assert len(result.date_valid_fractions) == 3
+    truth = _sea_east(grid)
+    away = np.ones(truth.shape, dtype=bool)
+    away[:, np.abs(np.arange(grid.width) - np.argmax(truth[0])) <= 3] = False
+    assert not result.valid[9:13, 9:13].any()
+    away &= result.valid
+    assert away.sum() > 0.9 * truth.size
+    assert (result.water[away] == truth[away]).all()
+    record = landsat.read_record(tmp_path / "cache", _site(), 2012)
+    assert record["dates"] == ["2012-07-03", "2012-07-12", "2012-07-20"]
+
+
+def test_search_refs_with_fake_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
+    import planetary_computer
+    import pystac_client
+
+    calls: dict[str, Any] = {}
+
+    class FakeSearch:
+        def item_collection(self) -> list[Any]:
+            return [_item("landsat-8"), _item("landsat-5", day="2012-08-01T07:00:00Z")]
+
+    class Catalog:
+        def search(self, **kwargs: Any) -> FakeSearch:
+            calls["search"] = kwargs
+            return FakeSearch()
+
+    def fake_open(url: str, modifier: Any = None) -> Catalog:
+        calls["modifier"] = modifier
+        return Catalog()
+
+    monkeypatch.setattr(pystac_client.Client, "open", staticmethod(fake_open))
+    refs = landsat._search_refs((48.0, 38.0, 49.0, 39.0), SEASON, 2012)
+    assert calls["search"] == {
+        "collections": ["landsat-c2-l2"],
+        "bbox": [48.0, 38.0, 49.0, 39.0],
+        "datetime": "2012-07-01/2012-08-31",
+    }
+    assert calls["modifier"] is planetary_computer.sign_inplace
+    assert [r.platform for r in refs] == ["landsat-8", "landsat-5"]
+
+
+def test_search_refs_converts_api_error_to_http_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    import pystac_client
+    from pystac_client.exceptions import APIError
+
+    def fake_open(url: str, modifier: Any = None) -> Any:
+        error = APIError("busy")
+        error.status_code = 503
+        raise error
+
+    monkeypatch.setattr(pystac_client.Client, "open", staticmethod(fake_open))
+    with pytest.raises(HttpStatusError) as info:
+        landsat._search_refs((48.0, 38.0, 49.0, 39.0), SEASON, 2012)
+    assert info.value.status == 503
+
+
+def test_mask_exposes_valid_fractions_and_mndwi_and_cache_keeps_them(tmp_path: Path) -> None:
+    grid = site_grid(_site())
+    stripes = np.zeros((grid.height, grid.width), dtype=bool)
+    stripes[:, ::4] = True
+    fakes = Fakes(_three_dates(), {"S3": _bands(grid, fill=stripes)})
+    first = _run(fakes, tmp_path)
+    second = _run(fakes, tmp_path)
+    assert first is not None and second is not None
+    assert first.date_valid_fractions == pytest.approx((0.75, 1.0, 1.0), abs=0.02)
+    assert first.composite_valid_fraction == pytest.approx(1.0)
+    for mask in (first, second):
+        assert mask.mndwi is not None
+        assert mask.mndwi.dtype == np.float32
+        assert np.isnan(mask.mndwi[~mask.valid]).all()
+        assert np.isfinite(mask.mndwi[mask.valid]).all()
+    assert second.date_valid_fractions == first.date_valid_fractions
+    assert second.composite_valid_fraction == first.composite_valid_fraction
+    assert first.mndwi is not None and second.mndwi is not None
+    assert np.array_equal(second.mndwi, first.mndwi, equal_nan=True)
+    record = landsat.read_record(tmp_path, _site(), 2012)
+    assert record["composite_valid_fraction"] == pytest.approx(1.0)
+    assert len(record["date_valid_fractions"]) == 3
+    assert record["settings"]["mndwi_stored"] is True
+
+
+def test_cache_without_mndwi_is_a_miss(tmp_path: Path) -> None:
+    fakes = Fakes(_three_dates())
+    _run(fakes, tmp_path)
+    (path,) = tmp_path.iterdir()
+    with np.load(path, allow_pickle=False) as data:
+        kept = {k: data[k] for k in ("water", "valid", "meta")}
+    np.savez_compressed(path, **kept)
+    before = fakes.searches
+    result = _run(fakes, tmp_path)
+    assert result is not None and result.mndwi is not None
+    assert fakes.searches == before + 1
