@@ -9,7 +9,9 @@ per-region standardized anomalies (z-scores), not raw NDVI.
 
 Composites are 16-day products dated by their first day; a composite counts for the season if
 that date lies in the climate season window (both ends inclusive).
-Source: MODIS/NASA LP DAAC via Microsoft Planetary Computer (anonymous signing).
+Source: MODIS/NASA LP DAAC via Microsoft Planetary Computer (anonymous signing). Signed asset
+URLs expire (about 1 h): a very long run fails loudly (403) and can be resumed from the
+per-region-year cache.
 """
 
 import json
@@ -131,6 +133,10 @@ def _search_scenes(year: int) -> list[Scene]:
         if exc.status_code is None:
             raise
         raise HttpStatusError(exc.status_code) from exc
+    return _scenes_from_items(list(items))
+
+
+def _scenes_from_items(items: list[Any]) -> list[Scene]:
     scenes: list[Scene] = []
     for item in items:
         if not item.id.startswith(PLATFORM_PREFIX):
@@ -146,6 +152,8 @@ def _search_scenes(year: int) -> list[Scene]:
                 bbox=(item.bbox[0], item.bbox[1], item.bbox[2], item.bbox[3]),
             )
         )
+    if not scenes:
+        raise ValueError(f"no MODIS scenes from {PLATFORM_PREFIX}* among {len(items)} STAC items")
     return scenes
 
 
@@ -269,7 +277,7 @@ def _read_cache(path: Path, region_id: str, year: int) -> float | None:
         ):
             return None
         peak = float(data["ndvi_peak"])
-        return None if math.isnan(peak) else peak
+        return peak if math.isfinite(peak) and peak != 0.0 else None
     except (OSError, ValueError, KeyError, TypeError):
         return None
 
