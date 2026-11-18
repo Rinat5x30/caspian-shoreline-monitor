@@ -147,10 +147,10 @@
 - [ ] **Step 4: Мутационная проверка** тестов утечки (показать красный результат при поломке и вернуть код).
 - [ ] **Step 5: Реальный прогон ровно один раз** скриптом `scripts/run_caspian_validation.py` по реальным рядам; вывести `SiteReport` для каждого участка и общий вердикт; ничего не подгонять после просмотра; записать результат в отчёт. **Run** тесты, линтеры — PASS. **Commit** `feat: pre-registered validation of shoreline vs sea level`.
 
-### Task 9: Карта, таблица и отчёт
+### Task 9: Данные карты, таблица и отчёт
 
 **Files:**
-- Create: `src/caspianwatch/mapdata.py`, `web/caspian.html`, `scripts/build_caspian.py`, `docs/application/caspian-validation-report.md`
+- Create: `src/caspianwatch/mapdata.py`, `scripts/build_caspian.py`, `docs/application/caspian-validation-report.md`, `web/data/` (готовые GeoJSON и JSON)
 - Test: `tests/caspian/test_mapdata.py`
 
 **Interfaces:**
@@ -158,10 +158,25 @@
 - Produces: `build_shoreline_geojson(site: Site, masks: Mapping[int, WaterMask | None], reports: Sequence[SiteReport]) -> dict[str, Any]` — FeatureCollection линий берега по годам с `year`, `site_id`, `uncertainty_m` (не менее 30); `build_summary_table(...) -> pd.DataFrame` (участок, вердикт, площадь обнажённой суши км², метров на сантиметр уровня из коэффициента b, только если вердикт «подтверждено», иначе пусто); `validation_note(overall: str, reports: Sequence[SiteReport]) -> str`.
 
 - [ ] **Step 1: Failing tests:** `test_geojson_has_line_per_available_year_and_min_uncertainty`, `test_metres_per_cm_empty_unless_confirmed`, `test_not_confirmed_note_says_not_confirmed`, `test_unmeasurable_site_listed_with_reason`.
-- [ ] **Step 2: Run** — FAIL. **Step 3: Implement.** Статическая карта Leaflet читает готовый GeoJSON; подпись всегда содержит общий вердикт, а не скрывает его; в таблице «метров на сантиметр» не выводится для участков без подтверждения.
-- [ ] **Step 4:** `python scripts/build_caspian.py` строит данные карты и `validation-report.md`; открыть `web/caspian.html` в браузере и убедиться, что карта и подпись отображаются. **Run** `pytest -v && ruff check . && black --check . && mypy src` — PASS. **Commit** `feat: shoreline map and validation report`.
+- [ ] **Step 2: Run** — FAIL. **Step 3: Implement.** Подпись содержит общий вердикт, а не скрывает его; в таблице «метров на сантиметр» не выводится для участков без подтверждения; дополнительно `build_level_vs_shore_json(...) -> dict[str, Any]` — ряды уровня и смещения по годам для графика (пропуски — null, не нули).
+- [ ] **Step 4:** `python scripts/build_caspian.py` строит `web/data/*` и `validation-report.md`. **Run** `pytest -v && ruff check . && black --check . && mypy src` — PASS. **Commit** `feat: map data and validation report`.
 
-### Task 10: Финальная заявка и итог по процессу
+### Task 10: Красивый интерфейс
+
+**Files:**
+- Create: `web/caspian.html`, `web/css/caspian.css`, `web/js/caspian.js`, `docs/caspian/interface-notes.md`
+- Test: `tests/caspian/test_web.py`
+
+**Interfaces:**
+- Consumes: `web/data/*` из Task 9 (береговые линии по годам, таблица участков, ряды «уровень — смещение», `validation_note`).
+- Produces: статическая страница без сервера, открывается из файла; элементы с id: `verdict-badge`, `year-slider`, `play-button`, `site-cards`, `level-chart`, `legend`.
+
+- [ ] **Step 1: Дизайн-решения (решения Claude, владелец делегировал).** Использовать навыки `frontend-design` и `ui-ux-pro-max`. Направление: кинематографичный тёмный экран на весь вид со спутниковой подложкой, береговые линии 2000–2025 в непрерывной цветовой шкале от холодного к тёплому, ползунок года с кнопкой воспроизведения (анимация отступления), крупная цифра «км² новой суши» в выбранный год, карточки участков с бейджем вердикта, график «уровень против смещения». Выразительный шрифт для заголовка и читаемый для текста (Google Fonts), светлая тема через `prefers-color-scheme`, уважение `prefers-reduced-motion`, контраст не ниже AA, отступы по бокам не менее 16 px, без горизонтальной прокрутки на ширине 390 px. Бейдж вердикта и неопределённость ±м всегда видны на первом экране; «метров на сантиметр» показывается только у подтверждённых участков. Подложка и библиотеки: Leaflet с cdnjs с точной версией, закреплённой в URL; подложка с обязательной атрибуцией. Записать решения и атрибуции в `docs/caspian/interface-notes.md`.
+- [ ] **Step 2: Failing tests** (разбор HTML и данных, офлайн): `test_page_has_required_element_ids`, `test_verdict_text_on_page_matches_validation_note` (текст бейджа берётся из данных, а не из шаблона), `test_page_loads_only_allowed_cdn_hosts`, `test_no_confirmed_claim_when_data_says_not_confirmed` (на фикстуре «не подтверждено» страница не содержит слов «confirmed»/«подтверждено» вне фразы «не подтверждено»), `test_missing_year_renders_as_gap_not_zero`.
+- [ ] **Step 3: Run** `pytest tests/caspian/test_web.py -v` — FAIL. **Step 4: Implement** страницу.
+- [ ] **Step 5: Визуальная проверка** в браузере (Playwright): снимки экрана при ширине 390, 768 и 1440 px, при тёмной и светлой теме; сохранить в `docs/caspian/screens/`; проверить: нет горизонтальной прокрутки, бейдж вердикта виден без прокрутки, анимация запускается и останавливается, консоль без ошибок. **Run** тесты, линтеры — PASS. **Commit** `feat: Caspian shoreline interface`.
+
+### Task 11: Финальная заявка и итог по процессу
 
 **Files:**
 - Modify: `docs/application/caspian-proposal.md`, `docs/application/caspian-video-script.md`, `docs/superpowers/timing-log.md`
