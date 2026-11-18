@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from rasterio.transform import from_origin
+from rasterio.transform import Affine, from_origin
 from shapely.geometry import LineString, Point, box
 
 from caspianwatch import site_selection as sel
@@ -40,7 +40,14 @@ from caspianwatch.site_selection import (
     site_geometry,
     smooth_line,
 )
-from caspianwatch.sites import DEFAULT_SITES, Profile, Site, load_sites, make_profiles
+from caspianwatch.sites import (
+    DEFAULT_SITES,
+    Profile,
+    Site,
+    load_sites,
+    make_profiles,
+    profile_end,
+)
 from wheatwatch.climate import HttpStatusError
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "caspianwatch"
@@ -56,7 +63,7 @@ def test_thresholds_are_the_preregistered_values() -> None:
     assert (SLOPE_MAX_DEG, BUILT_MAX, TREE_MAX, WETLAND_DELTAIC_MIN) == (1.0, 0.30, 0.10, 0.10)
     assert sel.BAND_WIDTH_M == 1000.0
     assert sel.SEGMENT_RADIUS_M == 7500.0
-    assert sel.PROFILE_MARGIN_M == 1500.0
+    assert sel.PROFILE_MARGIN_M == 8000.0
     assert sel.INLAND_M == {
         "gizilaghaj": 10_000.0,
         "kura_delta": 6_000.0,
@@ -415,7 +422,7 @@ def test_site_geometry_on_straight_coast() -> None:
     cand = sel.Candidate("syn", "Synthetic", 0.0, 0.0, False, "test")
     result = site_geometry(cand, layers, 3000.0, False, _water_of(layers))
     assert result.site.inland_m == 3000.0
-    assert result.site.profile_length_m == 4500.0
+    assert result.site.profile_length_m == 3000.0 + sel.PROFILE_MARGIN_M
     assert result.site.seaward == pytest.approx((1.0, 0.0), abs=1e-3)
     assert result.total == len(result.kept) + len(result.site.dropped_profiles)
     assert result.site.dropped_profiles == () and result.crossings == 0
@@ -592,3 +599,33 @@ def test_crosses_open_sea_tolerates_non_open_water_in_the_station_run() -> None:
 
     assert crosses_open_sea([p], is_open, 1000.0) == [True]
     assert crosses_open_sea([p], is_open, 1000.0, is_water=is_water) == [False]
+
+
+def test_worldcover_water_outside_raster_follows_edge_cell() -> None:
+    classes = np.zeros((4, 4), dtype=np.uint8)
+    classes[:, 3] = sel.WATER
+    transform = Affine(0.001, 0.0, 48.0, 0.0, -0.001, 40.0)
+    is_water = sel._worldcover_water(classes, transform)
+    to_utm = sel._TO_UTM
+    east = to_utm.transform(48.0 + 0.010, 40.0 - 0.0015)
+    west = to_utm.transform(48.0 - 0.010, 40.0 - 0.0015)
+    north = to_utm.transform(48.0 + 0.0015, 40.0 + 0.010)
+    south = to_utm.transform(48.0 + 0.0035, 40.0 - 0.010)
+    xs = np.array([east[0], west[0], north[0], south[0]])
+    ys = np.array([east[1], west[1], north[1], south[1]])
+    assert is_water(xs, ys).tolist() == [True, False, False, True]
+
+
+@pytest.mark.skipif(not _caches_present(), reason="cached WorldCover / DEM rasters absent")
+def test_stored_profiles_start_on_land_and_end_in_class_80() -> None:
+    classes, transform = sel._load_worldcover()
+    is_water = sel._worldcover_water(classes, transform)
+    stored = {s["site_id"]: s for s in json.loads(DEFAULT_SITES.read_text("utf-8"))["sites"]}
+    for site in load_sites():
+        profiles = make_profiles(site)
+        assert len(profiles) == len(stored[site.site_id]["profiles"]) >= sel.MIN_VALID_PROFILES
+        for p in profiles:
+            ox, oy = p.origin
+            ex, ey = profile_end(p)
+            assert not is_water(np.array([ox]), np.array([oy]))[0], (site.site_id, p.index)
+            assert is_water(np.array([ex]), np.array([ey]))[0], (site.site_id, p.index)

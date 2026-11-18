@@ -74,7 +74,7 @@ SMOOTH_WINDOW_M = 1000.0
 ORIENT_OFFSET_M = 300.0
 STORE_STEP_M = 50.0
 OBLIQUITY_HALF_M = 150.0
-PROFILE_MARGIN_M = 1500.0
+PROFILE_MARGIN_M = 8000.0
 MIN_VALID_PROFILES = 30
 GEOMETRY_CAVEATS: dict[str, str] = {
     "kura_delta": (
@@ -757,14 +757,14 @@ def site_geometry(
 
 
 def _worldcover_water(classes: NDArray[np.uint8], transform: Affine) -> WaterTest:
+    """Class-80 test; a point outside the raster takes the class of the nearest edge cell."""
+
     def is_water(xs: FloatArray, ys: FloatArray) -> BoolArray:
         lon, lat = _TO_LONLAT.transform(np.asarray(xs), np.asarray(ys))
         rows, cols = rowcol(transform, np.asarray(lon), np.asarray(lat))
-        rows, cols = np.asarray(rows), np.asarray(cols)
-        ok = (rows >= 0) & (rows < classes.shape[0]) & (cols >= 0) & (cols < classes.shape[1])
-        out = np.zeros(rows.shape, dtype=bool)
-        out[ok] = classes[rows[ok], cols[ok]] == WATER
-        return out
+        rows = np.clip(np.asarray(rows), 0, classes.shape[0] - 1)
+        cols = np.clip(np.asarray(cols), 0, classes.shape[1] - 1)
+        return np.asarray(classes[rows, cols] == WATER, dtype=bool)
 
     return is_water
 
