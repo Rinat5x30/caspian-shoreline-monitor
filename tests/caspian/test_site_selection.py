@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from rasterio.transform import from_origin
+from shapely.geometry import LineString, Point, box
 
 from caspianwatch import site_selection as sel
 from caspianwatch.site_selection import (
@@ -17,17 +18,27 @@ from caspianwatch.site_selection import (
     WETLAND_DELTAIC_MIN,
     BandStats,
     Grid,
+    Layers,
     band_mask,
+    build_layers,
     caspian_component,
     class_shares,
-    coast_crossing,
-    contour_offset,
+    coast_line,
+    dem_diagnostics,
     evaluate,
     fetch_dem,
+    geometry_ok,
     mean_slope_deg,
+    obliquity_deg,
+    open_sea,
+    orient_sea_left,
+    profile_valid,
     required_profile_length,
-    smooth_offsets,
+    sample_layers,
+    site_geometry,
+    smooth_line,
 )
+from caspianwatch.sites import Profile, Site, load_sites, make_profiles
 from wheatwatch.climate import HttpStatusError
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "caspianwatch"
@@ -43,8 +54,13 @@ def test_thresholds_are_the_preregistered_values() -> None:
     assert (SLOPE_MAX_DEG, BUILT_MAX, TREE_MAX, WETLAND_DELTAIC_MIN) == (1.0, 0.30, 0.10, 0.10)
     assert sel.BAND_WIDTH_M == 1000.0
     assert sel.SEGMENT_RADIUS_M == 7500.0
-    assert sel.CONTOUR_LEVEL_M == -24.0
-    assert sel.PROFILE_MARGIN_M >= 1000.0
+    assert sel.PROFILE_MARGIN_M == 1500.0
+    assert sel.INLAND_M == {
+        "gizilaghaj": 10_000.0,
+        "kura_delta": 6_000.0,
+        "lankaran_astara": 3_000.0,
+    }
+    assert sel.MAX_INVALID_SHARE == 0.20
 
 
 def test_rule_boundaries_are_inclusive() -> None:
@@ -128,38 +144,6 @@ def test_caspian_component_drops_disconnected_water() -> None:
         caspian_component(classes, transform, (0.5, 0.5))
 
 
-def test_coast_crossing_nearest_axis() -> None:
-    t = np.arange(-300.0, 301.0, 30.0)
-    is_sea = t > 45.0
-    assert coast_crossing(t, is_sea) == pytest.approx(45.0)
-    two = (t > 45.0) | ((t > -255.0) & (t < -195.0))
-    assert coast_crossing(t, two) == pytest.approx(45.0)
-    assert coast_crossing(t, np.zeros(t.shape, dtype=bool)) is None
-
-
-def test_contour_offset_on_ramp_with_noise_spike() -> None:
-    t = np.arange(-5000.0, 1.0, 10.0)
-    dem = -28.0 + (-t) / 250.0
-    assert contour_offset(t, dem, 0.0) == pytest.approx(-1000.0)
-    spiky = dem.copy()
-    spiky[(t <= -200.0) & (t >= -300.0)] = -20.0
-    assert contour_offset(t, spiky, 0.0) == pytest.approx(-1000.0)
-    assert contour_offset(t, np.full(t.shape, -27.0), 0.0) is None
-    assert contour_offset(t, dem, 0.0, max_inland_m=900.0) is None
-
-
-def test_smooth_offsets_moves_landward_and_keeps_nan_out() -> None:
-    raw = np.array([-1000.0] * 10 + [-400.0] + [-1000.0] * 10)
-    out = smooth_offsets(raw)
-    assert np.allclose(out, -1000.0)
-    dip = np.array([-1000.0] * 10 + [-2000.0] + [-1000.0] * 10)
-    assert smooth_offsets(dip)[10] < -1000.0
-    with_nan = np.array([np.nan, -1000.0, -1000.0, np.nan, -1000.0])
-    smoothed = smooth_offsets(with_nan)
-    assert np.isnan(smoothed[[0, 3]]).all()
-    assert np.allclose(smoothed[[1, 2, 4]], -1000.0)
-
-
 def test_required_profile_length() -> None:
     assert required_profile_length([1234.0, 2950.0], 2000.0) == 5000.0
     assert required_profile_length([3000.0], 2000.0) == 5000.0
@@ -226,6 +210,7 @@ def test_failed_dem_fetch_raises_and_caches_nothing(tmp_path: Path) -> None:
 
 
 FORBIDDEN = ("caspianwatch.level", "caspianwatch.season", "wheatwatch.ndvi")
+RUNTIME_FORBIDDEN = ("caspianwatch.level", "caspianwatch.season")
 FORBIDDEN_WORDS = ("shore", "water", "landsat", "sentinel", "mndwi", "grealm", "ndvi")
 
 
@@ -259,3 +244,204 @@ def test_importing_selection_loads_no_level_or_imagery_module() -> None:
         env={**os.environ, "PYTHONPATH": str(SRC.parent)},
     )
     assert out.stdout.strip() == "[]"
+
+
+def test_runtime_selection_path_loads_no_level_module(tmp_path: Path) -> None:
+    # cache.retry reuses wheatwatch.ndvi._retry (a generic HTTP back-off helper); no NDVI or
+    # imagery data is read. Level and season modules must stay unloaded on the real code path.
+    code = (
+        "import sys, numpy as np\n"
+        "from pathlib import Path\n"
+        "from caspianwatch.site_selection import Grid, fetch_dem\n"
+        "g = Grid(400000.0, 4400000.0, 30.0, 2, 2)\n"
+        "fetch_dem(g, search=lambda b: [('t', 'h')], "
+        "warp=lambda h, grid: np.zeros((2, 2)), sleep=lambda s: None, "
+        f"cache_dir=Path({str(tmp_path)!r}))\n"
+        f"print(sorted(m for m in sys.modules if m in {RUNTIME_FORBIDDEN!r}))\n"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**os.environ, "PYTHONPATH": str(SRC.parent)},
+    )
+    assert out.stdout.strip() == "[]"
+
+
+PX = 30.0
+WORLDCOVER = sel.ROOT / "data" / "raw" / "cache" / "worldcover2021_cropland_az_100m.tif"
+
+
+def _layers(sea: np.ndarray, dem: np.ndarray | None = None) -> Layers:
+    h, w = sea.shape
+    grid = Grid(0.0, h * PX, PX, w, h)
+    classes = np.where(sea, 80, 30).astype(np.uint8)
+    center = (w * PX / 2, h * PX / 2)
+    xs = (np.arange(w) + 0.5) * PX
+    ys = h * PX - (np.arange(h) + 0.5) * PX
+    disk = np.hypot(xs[None, :] - center[0], ys[:, None] - center[1]) <= sel.SEGMENT_RADIUS_M
+    return Layers(grid, center, classes, sea, disk, np.zeros(sea.shape) if dem is None else dem)
+
+
+def _straight_layers(size: int = 800, sea_col: int = 400) -> Layers:
+    sea = np.zeros((size, size), dtype=bool)
+    sea[:, sea_col:] = True
+    return _layers(sea)
+
+
+def _water_of(layers: Layers) -> sel.WaterTest:
+    def is_water(xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
+        return sample_layers(layers, xs, ys)[1]
+
+    return is_water
+
+
+def test_sample_layers_inside_and_outside_grid() -> None:
+    layers = _straight_layers(size=10, sea_col=5)
+    layers.dem[2, 7] = 5.0
+    xs = np.array([7.5 * PX, 1.5 * PX, -10.0, 400.0])
+    ys = np.array([(10 - 2.5) * PX, 150.0, 150.0, 1e6])
+    dem, sea = sample_layers(layers, xs, ys)
+    assert dem[0] == 5.0 and sea[0]
+    assert dem[1] == 0.0 and not sea[1]
+    assert np.isnan(dem[2:]).all() and not sea[2:].any()
+
+
+def test_build_layers_maps_global_rasters_to_the_local_grid() -> None:
+    step = 1 / 1200
+    lon0, lat0 = 49.0, 40.2
+    classes = np.full((480, 480), 30, dtype=np.uint8)
+    classes[:, 240:] = 80
+    transform = from_origin(lon0, lat0, step, step)
+    centre = sel._TO_UTM.transform(lon0 + 240 * step, lat0 - 240 * step)
+    calls: list[Grid] = []
+
+    def dem_fetch(grid: Grid) -> np.ndarray:
+        calls.append(grid)
+        return np.zeros((grid.height, grid.width))
+
+    layers = build_layers(centre, classes, classes == 80, transform, dem_fetch=dem_fetch)
+    n = int(round(2 * sel.GRID_HALF_M / sel.PIXEL_M))
+    assert layers.sea.shape == (n, n) and calls == [layers.grid]
+    assert (layers.classes[layers.sea] == 80).all()
+    assert 0.3 < layers.sea[layers.disk].mean() < 0.7
+    expected = math.pi * sel.SEGMENT_RADIUS_M**2 / sel.PIXEL_M**2
+    assert layers.disk.sum() == pytest.approx(expected, rel=0.01)
+
+
+def test_open_sea_drops_lagoon_behind_barrier_and_channel() -> None:
+    sea = np.zeros((60, 60), dtype=bool)
+    sea[:, 40:] = True
+    sea[10:50, 10:30] = True
+    sea[29:31, 30:40] = True
+    opened = open_sea(sea, erode_px=3)
+    assert opened[:, 40:].all()
+    assert not opened[10:50, 10:30].any()
+    assert not opened[29:31, 30:37].any()
+    assert not (opened & ~sea).any()
+
+
+def test_coast_line_and_smoothing_on_straight_coast() -> None:
+    layers = _straight_layers()
+    line = coast_line(open_sea(layers.sea, 3), layers.grid.transform, layers.center)
+    assert line.length == pytest.approx(2 * sel.SEGMENT_RADIUS_M, rel=0.02)
+    xs = [x for x, _ in line.coords]
+    assert min(xs) == pytest.approx(400 * PX) and max(xs) == pytest.approx(400 * PX)
+    zigzag = LineString([(i * 30.0, 30.0 * (i % 2)) for i in range(200)])
+    smooth = smooth_line(zigzag, window_m=1000.0)
+    inner = [y for x, y in smooth.coords if 1000.0 < x < 5000.0]
+    assert max(inner) - min(inner) < 2.0
+
+
+def test_direction_sign_by_sampling() -> None:
+    is_sea = _water_of(_straight_layers())
+    north = LineString([(400 * PX, 2000.0), (400 * PX, 20_000.0)])
+    south = LineString([(400 * PX, 20_000.0), (400 * PX, 2000.0)])
+    assert list(orient_sea_left(south, is_sea).coords) == list(south.coords)
+    assert list(orient_sea_left(north, is_sea).coords) == list(south.coords)
+
+
+def test_delta_lobe_profile_starting_in_sea_is_invalid() -> None:
+    lobe = box(-1000.0, 0.0, 1000.0, 10_000.0)
+
+    def is_water(xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
+        return np.array([not lobe.contains(Point(x, y)) for x, y in zip(xs, ys, strict=True)])
+
+    east_flank = LineString([(1000.0, 8000.0), (1000.0, 2000.0)])
+    deep = Site("lobe", "Lobe", east_flank, (1.0, 0.0), True, 4500.0, 3000.0)
+    shallow = Site("lobe", "Lobe", east_flank, (1.0, 0.0), True, 2000.0, 500.0)
+    assert not any(profile_valid(make_profiles(deep), is_water))
+    assert all(profile_valid(make_profiles(shallow), is_water))
+
+
+def test_invalid_share_rule() -> None:
+    assert geometry_ok(8, 40)
+    assert not geometry_ok(9, 40)
+    assert not geometry_ok(0, 0)
+
+
+def test_obliquity_zero_on_straight_coast_and_45_on_skewed_profile() -> None:
+    coast = LineString([(0.0, 10_000.0), (0.0, 0.0)])
+    straight = Profile("s", 0, (-1000.0, 5000.0), (1.0, 0.0), 2500.0)
+    skew = Profile("s", 1, (-1000.0, 5000.0), (math.sqrt(0.5), math.sqrt(0.5)), 2500.0)
+    assert obliquity_deg([straight, skew], coast) == pytest.approx([0.0, 45.0], abs=1e-6)
+
+
+def test_dem_diagnostics_flattened_share_and_slope() -> None:
+    xx = np.mgrid[0:20, 0:20][1].astype(float) * PX
+    dem = 0.01 * xx
+    dem[:, :10] = -28.0
+    band = np.zeros(dem.shape, dtype=bool)
+    band[2:-2, 2:-2] = True
+    diag = dem_diagnostics(dem, band)
+    assert diag["flat_value_m"] == -28.0
+    assert diag["flattened_share"] == pytest.approx(8 / 16)
+    assert diag["slope_without_flattened_deg"] > 0.0
+
+
+def test_site_geometry_on_straight_coast() -> None:
+    layers = _straight_layers()
+    cand = sel.Candidate("syn", "Synthetic", 0.0, 0.0, False, "test")
+    result = site_geometry(cand, layers, 3000.0, False, _water_of(layers))
+    assert result.site.inland_m == 3000.0
+    assert result.site.profile_length_m == 4500.0
+    assert result.site.seaward == pytest.approx((1.0, 0.0), abs=1e-3)
+    assert result.total == len(result.kept) + len(result.site.dropped_profiles)
+    assert result.site.dropped_profiles == () and result.crossings == 0
+    assert max(result.obliquity) < 1.0
+    for record in result.kept:
+        assert record["distance_to_coast_m"] == pytest.approx(3000.0, abs=31.0)
+        assert record["origin"][0] == pytest.approx(400 * PX - 3000.0, abs=1.0)
+
+
+def test_site_geometry_lagoon_is_not_the_coast() -> None:
+    sea = np.zeros((800, 800), dtype=bool)
+    sea[:, 500:] = True
+    sea[300:500, 330:420] = True
+    sea[399:401, 420:500] = True
+    layers = _layers(sea)
+    cand = sel.Candidate("lag", "Lagoon", 0.0, 0.0, False, "test")
+    result = site_geometry(cand, layers, 1000.0, False, _water_of(layers))
+    xs = [x for x, _ in result.site.reference_line.coords]
+    assert min(xs) > 480 * PX
+
+
+@pytest.mark.skipif(not WORLDCOVER.exists(), reason="cached WorldCover raster absent")
+def test_repository_profiles_start_on_land_and_end_in_sea() -> None:
+    import rasterio
+
+    with rasterio.open(WORLDCOVER) as ds:
+        for site in load_sites():
+            profiles = make_profiles(site)
+            ends = [
+                (
+                    p.origin[0] + p.direction[0] * p.length_m,
+                    p.origin[1] + p.direction[1] * p.length_m,
+                )
+                for p in profiles
+            ]
+            for points, water in (([p.origin for p in profiles], False), (ends, True)):
+                lon, lat = sel._TO_LONLAT.transform([x for x, _ in points], [y for _, y in points])
+                values = [int(v[0]) for v in ds.sample(list(zip(lon, lat, strict=True)))]
+                assert all((v == 80) is water for v in values), site.site_id

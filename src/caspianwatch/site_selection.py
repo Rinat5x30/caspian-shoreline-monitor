@@ -19,6 +19,7 @@ from typing import Any
 
 import numpy as np
 import rasterio
+import shapely
 from numpy.typing import NDArray
 from pyproj import Transformer
 from rasterio.enums import Resampling
@@ -30,12 +31,23 @@ from shapely.geometry import LineString, Point, shape
 from shapely.ops import unary_union
 
 from caspianwatch.cache import retry
-from caspianwatch.sites import CRS, DEFAULT_SITES, Site, make_profiles, site_to_dict
+from caspianwatch.sites import (
+    CRS,
+    DEFAULT_SITES,
+    TANGENT_HALF_M,
+    Profile,
+    Site,
+    count_crossings,
+    make_profiles,
+    profile_end,
+    site_to_dict,
+)
 
 BBox = tuple[float, float, float, float]
 Sleep = Callable[[float], None]
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
+WaterTest = Callable[[FloatArray, FloatArray], BoolArray]
 
 ROOT = Path(__file__).resolve().parents[2]
 CACHE_DIR = ROOT / "data" / "raw" / "cache" / "caspian"
@@ -55,18 +67,23 @@ SEGMENT_RADIUS_M = 7500.0
 SNAP_MAX_M = 10_000.0
 BAND_WIDTH_M = 1000.0
 GRID_HALF_M = 16_500.0
-STATION_SPACING_M = 200.0
-RAY_HALF_M = 12_000.0
-CONTOUR_LEVEL_M = -24.0
-CONTOUR_SUSTAIN_M = 300.0
-CONTOUR_MAX_INLAND_M = 8000.0
-CONTOUR_MIN_FRACTION = 0.70
-FALLBACK_OFFSET_M = 1500.0
-SMOOTH_MIN_STATIONS = 5
-SMOOTH_MEAN_STATIONS = 11
-SIMPLIFY_M = 30.0
-PROFILE_MARGIN_M = 2000.0
-PROFILE_SEARCH_M = 25_000.0
+GEOMETRY_GRID_HALF_M = 21_000.0
+OPEN_SEA_ERODE_M = 300.0
+SMOOTH_WINDOW_M = 1000.0
+ORIENT_OFFSET_M = 300.0
+STORE_STEP_M = 50.0
+OBLIQUITY_HALF_M = 150.0
+PROFILE_MARGIN_M = 1500.0
+MAX_INVALID_SHARE = 0.20
+INLAND_M: dict[str, float] = {
+    "gizilaghaj": 10_000.0,
+    "kura_delta": 6_000.0,
+    "lankaran_astara": 3_000.0,
+}
+FLAT_TOL_M = 0.005
+LEVEL_2000_BRIEF_M = -26.5
+LEVEL_RISE_2000_M = 1.35
+DISTANCE_UNCERTAINTY_M = 50.0
 MIN_DEM_COVERAGE = 0.99
 
 _TO_UTM = Transformer.from_crs("EPSG:4326", CRS, always_xy=True)
@@ -255,57 +272,6 @@ def caspian_component(
             )
             return np.asarray(burned == 1, dtype=bool)
     raise AssertionError("seed pixel has no polygon")
-
-
-def coast_crossing(t: FloatArray, is_sea: BoolArray) -> float | None:
-    steps = np.flatnonzero(~is_sea[:-1] & is_sea[1:])
-    if steps.size == 0:
-        return None
-    mids = (t[steps] + t[steps + 1]) / 2.0
-    return float(mids[np.argmin(np.abs(mids))])
-
-
-def contour_offset(
-    t: FloatArray,
-    dem: FloatArray,
-    t_c: float,
-    *,
-    level: float = CONTOUR_LEVEL_M,
-    sustain_m: float = CONTOUR_SUSTAIN_M,
-    max_inland_m: float = CONTOUR_MAX_INLAND_M,
-) -> float | None:
-    """Most seaward t <= t_c from which dem >= level holds for sustain_m further inland."""
-    eps = 1e-6
-    above = dem >= level
-    for i in range(len(t) - 1, -1, -1):
-        if t[i] > t_c + eps:
-            continue
-        if t[i] < t_c - max_inland_m - eps or t[i] - sustain_m < t[0] - eps:
-            return None
-        window = (t >= t[i] - sustain_m - eps) & (t <= t[i] + eps)
-        if above[window].all():
-            return float(t[i])
-    return None
-
-
-def _rolling(values: FloatArray, window: int, reduce: Callable[[FloatArray], float]) -> FloatArray:
-    half = window // 2
-    out = np.full(values.shape, np.nan)
-    for i in range(len(values)):
-        if np.isnan(values[i]):
-            continue
-        chunk = values[max(0, i - half) : i + half + 1]
-        out[i] = reduce(chunk[~np.isnan(chunk)])
-    return out
-
-
-def smooth_offsets(
-    raw: FloatArray,
-    min_window: int = SMOOTH_MIN_STATIONS,
-    mean_window: int = SMOOTH_MEAN_STATIONS,
-) -> FloatArray:
-    landward = _rolling(np.asarray(raw, dtype=float), min_window, lambda c: float(c.min()))
-    return _rolling(landward, mean_window, lambda c: float(c.mean()))
 
 
 def required_profile_length(distances: Sequence[float], margin_m: float) -> float:
@@ -504,10 +470,11 @@ def build_layers(
     caspian: BoolArray,
     transform: Affine,
     dem_fetch: Callable[[Grid], FloatArray] = fetch_dem,
+    half_m: float = GRID_HALF_M,
 ) -> Layers:
-    size = int(round(2 * GRID_HALF_M / PIXEL_M))
-    x0 = math.floor((center[0] - GRID_HALF_M) / PIXEL_M) * PIXEL_M
-    y0 = math.ceil((center[1] + GRID_HALF_M) / PIXEL_M) * PIXEL_M
+    size = int(round(2 * half_m / PIXEL_M))
+    x0 = math.floor((center[0] - half_m) / PIXEL_M) * PIXEL_M
+    y0 = math.ceil((center[1] + half_m) / PIXEL_M) * PIXEL_M
     grid = Grid(x0, y0, PIXEL_M, size, size)
     local_classes = _local(classes, transform, grid)
     sea = _local(caspian.astype(np.uint8), transform, grid) == 1
@@ -517,7 +484,7 @@ def build_layers(
     return Layers(grid, center, local_classes, sea, disk, dem_fetch(grid))
 
 
-def band_stats(layers: Layers) -> tuple[BandStats, dict[int, float]]:
+def band_stats(layers: Layers) -> tuple[BandStats, dict[int, float], dict[str, float]]:
     band = band_mask(layers.sea, layers.grid.transform, BAND_WIDTH_M) & layers.disk
     shares = class_shares(layers.classes, band)
     stats = BandStats(
@@ -527,115 +494,270 @@ def band_stats(layers: Layers) -> tuple[BandStats, dict[int, float]]:
         wetland_share=shares.get(WETLAND, 0.0),
         n_pixels=int(band.sum()),
     )
-    return stats, shares
+    return stats, shares, dem_diagnostics(layers.dem, band)
 
 
-def _sample(layers: Layers, xs: FloatArray, ys: FloatArray) -> tuple[FloatArray, BoolArray]:
+def dem_diagnostics(dem: FloatArray, band: BoolArray) -> dict[str, float]:
+    """Share of band pixels at the DEM's flattened-water value (the mode) and slope without them."""
+    finite = band & np.isfinite(dem)
+    values, counts = np.unique(np.round(dem[finite], 2), return_counts=True)
+    flat_value = float(values[np.argmax(counts)])
+    flat = np.abs(dem - flat_value) < FLAT_TOL_M
+    slope = slope_deg(dem, PIXEL_M)
+    rest = finite & ~flat & np.isfinite(slope)
+    return {
+        "flat_value_m": flat_value,
+        "flattened_share": float((finite & flat).sum() / finite.sum()),
+        "slope_without_flattened_deg": float(slope[rest].mean()) if rest.any() else math.nan,
+    }
+
+
+def _sample_mask(grid: Grid, mask: BoolArray, xs: FloatArray, ys: FloatArray) -> BoolArray:
+    cols = np.floor((xs - grid.x0) / grid.pixel_m).astype(int)
+    rows = np.floor((grid.y0 - ys) / grid.pixel_m).astype(int)
+    ok = (cols >= 0) & (cols < grid.width) & (rows >= 0) & (rows < grid.height)
+    out = np.zeros(np.shape(xs), dtype=bool)
+    out[ok] = mask[rows[ok], cols[ok]]
+    return out
+
+
+def sample_layers(layers: Layers, xs: FloatArray, ys: FloatArray) -> tuple[FloatArray, BoolArray]:
+    """DEM and Caspian flag at UTM points; outside the grid: NaN and False."""
     g = layers.grid
     cols = np.floor((xs - g.x0) / g.pixel_m).astype(int)
     rows = np.floor((g.y0 - ys) / g.pixel_m).astype(int)
     ok = (cols >= 0) & (cols < g.width) & (rows >= 0) & (rows < g.height)
-    dem = np.full(xs.shape, np.nan)
-    sea = np.zeros(xs.shape, dtype=bool)
+    dem = np.full(np.shape(xs), np.nan)
     dem[ok] = layers.dem[rows[ok], cols[ok]]
-    sea[ok] = layers.sea[rows[ok], cols[ok]]
-    return dem, sea
+    return dem, _sample_mask(g, layers.sea, xs, ys)
 
 
-def coast_axis(layers: Layers) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
-    """Coast vertices in the disk, their centroid, the along-coast axis and the seaward normal."""
-    g = layers.grid
-    rows, cols = np.nonzero(_boundary(layers.sea) & layers.disk)
-    pts = np.column_stack(
-        [g.x0 + (cols + 0.5) * g.pixel_m, g.y0 - (rows + 0.5) * g.pixel_m]
-    ).astype(float)
-    centroid = pts.mean(axis=0)
-    _, vecs = np.linalg.eigh(np.cov((pts - centroid).T))
-    axis = vecs[:, -1]
-    normal = np.array([-axis[1], axis[0]])
+def _cross(mask: BoolArray, erode: bool) -> BoolArray:
+    padded = np.pad(mask, 1, mode="edge")
+    centre = padded[1:-1, 1:-1]
+    neighbours = (padded[:-2, 1:-1], padded[2:, 1:-1], padded[1:-1, :-2], padded[1:-1, 2:])
+    out = centre.copy()
+    for n in neighbours:
+        out = out & n if erode else out | n
+    return np.asarray(out, dtype=bool)
 
-    def mean_xy(mask: BoolArray) -> FloatArray:
-        r, c = np.nonzero(mask)
-        return np.array([g.x0 + (c.mean() + 0.5) * g.pixel_m, g.y0 - (r.mean() + 0.5) * g.pixel_m])
 
-    if (
-        float(
-            np.dot(normal, mean_xy(layers.sea & layers.disk) - mean_xy(~layers.sea & layers.disk))
-        )
-        < 0
-    ):
-        normal = -normal
-    return pts, centroid, axis, normal
+def open_sea(sea: BoolArray, erode_px: int) -> BoolArray:
+    """Morphological opening of the Caspian mask, keeping only the largest open-water body."""
+    eroded = sea.copy()
+    for _ in range(erode_px):
+        eroded = _cross(eroded, erode=True)
+    if not eroded.any():
+        raise ValueError("no open water left after erosion")
+    identity = Affine.identity()
+    polys = [shape(g) for g, _ in shapes(eroded.astype(np.uint8), mask=eroded, connectivity=4)]
+    largest = max(polys, key=lambda poly: poly.area)
+    core = rasterize([largest], out_shape=sea.shape, transform=identity, fill=0, dtype="uint8")
+    grown = core == 1
+    for _ in range(erode_px):
+        grown = _cross(grown, erode=False) & sea
+    return np.asarray(grown, dtype=bool)
+
+
+def coast_line(opened: BoolArray, transform: Affine, center: tuple[float, float]) -> LineString:
+    """Longest piece of the open-water boundary inside the segment disk."""
+    disk = Point(center).buffer(SEGMENT_RADIUS_M)
+    pieces = shapely.line_merge(_polygons(opened, transform).boundary.intersection(disk))
+    lines = list(getattr(pieces, "geoms", [pieces]))
+    lines = [line for line in lines if isinstance(line, LineString) and line.length > 0]
+    if not lines:
+        raise ValueError("no coast inside the segment disk")
+    return max(lines, key=lambda line: line.length)
+
+
+def _resample(line: LineString, step_m: float) -> FloatArray:
+    n = max(2, int(math.ceil(line.length / step_m)) + 1)
+    pts = [line.interpolate(d) for d in np.linspace(0.0, line.length, n)]
+    return np.array([(p.x, p.y) for p in pts])
+
+
+def smooth_line(
+    line: LineString, window_m: float = SMOOTH_WINDOW_M, step_m: float = PIXEL_M
+) -> LineString:
+    pts = _resample(line, step_m)
+    half = max(1, int(round(window_m / step_m / 2)))
+    out = np.array([pts[max(0, i - half) : i + half + 1].mean(axis=0) for i in range(len(pts))])
+    return LineString(out)
+
+
+def orient_sea_left(
+    line: LineString, is_sea: WaterTest, offset_m: float = ORIENT_OFFSET_M
+) -> LineString:
+    site = Site("orient", "orient", line, (1.0, 0.0), False, offset_m * 2, offset_m)
+    profiles = make_profiles(site, length_m=offset_m * 2)
+    left = np.array([profile_end(p) for p in profiles])
+    right = np.array([p.origin for p in profiles])
+    sea_l, sea_r = is_sea(left[:, 0], left[:, 1]), is_sea(right[:, 0], right[:, 1])
+    if int((sea_r & ~sea_l).sum()) > int((sea_l & ~sea_r).sum()):
+        return LineString(list(line.coords)[::-1])
+    return line
+
+
+def profile_valid(profiles: list[Profile], is_water: WaterTest) -> list[bool]:
+    origins = np.array([p.origin for p in profiles])
+    ends = np.array([profile_end(p) for p in profiles])
+    on_land = ~is_water(origins[:, 0], origins[:, 1])
+    in_sea = is_water(ends[:, 0], ends[:, 1])
+    return [bool(a and b) for a, b in zip(on_land, in_sea, strict=True)]
+
+
+def geometry_ok(n_invalid: int, n_total: int) -> bool:
+    return n_total > 0 and n_invalid / n_total <= MAX_INVALID_SHARE
+
+
+def obliquity_deg(
+    profiles: list[Profile], coast: LineString, half_m: float = TANGENT_HALF_M
+) -> list[float]:
+    """Angle between each profile and the normal of `coast` where the profile first crosses it."""
+    out: list[float] = []
+    for p in profiles:
+        hit = LineString([p.origin, profile_end(p)]).intersection(coast)
+        points = [g for g in getattr(hit, "geoms", [hit]) if isinstance(g, Point)]
+        if not points:
+            out.append(math.nan)
+            continue
+        first = min(points, key=lambda q: math.dist(p.origin, (q.x, q.y)))
+        s = coast.project(first)
+        a = coast.interpolate(max(0.0, s - half_m))
+        b = coast.interpolate(min(coast.length, s + half_m))
+        tangent = np.array([b.x - a.x, b.y - a.y]) / math.dist((a.x, a.y), (b.x, b.y))
+        dot = abs(float(np.dot(tangent, p.direction)))
+        out.append(math.degrees(math.asin(min(1.0, dot))))
+    return out
+
+
+def _distance_to_line(p: Profile, line: LineString) -> float:
+    hit = LineString([p.origin, profile_end(p)]).intersection(line)
+    points = [g for g in getattr(hit, "geoms", [hit]) if isinstance(g, Point)]
+    if not points:
+        return math.nan
+    return min(math.dist(p.origin, (q.x, q.y)) for q in points)
 
 
 @dataclass(frozen=True)
-class ReferenceResult:
+class GeometryResult:
     site: Site
-    method: str
-    stations: int
-    stations_with_coast: int
-    contour_fraction: float
-    profiles: int
-    profiles_reaching_sea: int
-    max_distance_m: float
+    total: int
+    kept: list[dict[str, Any]]
+    crossings: int
+    obliquity: list[float]
+    origin_dem: list[float]
 
 
-def reference_site(candidate: Candidate, layers: Layers, deltaic: bool) -> ReferenceResult:
-    pts, centroid, axis, normal = coast_axis(layers)
-    along = (pts - centroid) @ axis
-    s_values = np.arange(along.min(), along.max() + 1e-9, STATION_SPACING_M)
-    t = np.arange(-RAY_HALF_M, RAY_HALF_M + 1e-9, PIXEL_M)
-    coast_t = np.full(s_values.shape, np.nan)
-    contour_t = np.full(s_values.shape, np.nan)
-    for i, s in enumerate(s_values):
-        base = centroid + s * axis
-        dem, sea = _sample(layers, base[0] + t * normal[0], base[1] + t * normal[1])
-        t_c = coast_crossing(t, sea)
-        if t_c is None:
-            continue
-        coast_t[i] = t_c
-        found = contour_offset(t, dem, t_c)
-        if found is not None:
-            contour_t[i] = found
-    with_coast = int(np.isfinite(coast_t).sum())
-    if with_coast == 0:
-        raise ValueError(f"{candidate.candidate_id}: no coast crossing on any station")
-    fraction = float(np.isfinite(contour_t).sum() / with_coast)
-    if fraction >= CONTOUR_MIN_FRACTION:
-        method, raw = "contour", contour_t
-    else:
-        method, raw = "fallback_offset", coast_t - FALLBACK_OFFSET_M
-    offsets = smooth_offsets(raw)
-    keep = np.isfinite(offsets)
-    line_pts = [
-        tuple(centroid + s * axis + o * normal)
-        for s, o in zip(s_values[keep], offsets[keep], strict=True)
-    ]
-    line = LineString(line_pts).simplify(SIMPLIFY_M)
-    seaward = (float(normal[0]), float(normal[1]))
-    draft = Site(candidate.candidate_id, candidate.name, line, seaward, deltaic, 1.0)
-    distances: list[float] = []
-    profiles = make_profiles(draft, spacing_m=STATION_SPACING_M)
-    d = np.arange(0.0, PROFILE_SEARCH_M + 1e-9, PIXEL_M)
-    for p in profiles:
-        xs = p.origin[0] + d * p.direction[0]
-        ys = p.origin[1] + d * p.direction[1]
-        _, sea = _sample(layers, xs, ys)
-        hit = np.flatnonzero(sea)
-        if hit.size:
-            distances.append(float(d[hit[0]]))
-    length = required_profile_length(distances, PROFILE_MARGIN_M)
-    site = Site(candidate.candidate_id, candidate.name, line, seaward, deltaic, length)
-    return ReferenceResult(
-        site,
-        method,
-        len(s_values),
-        with_coast,
-        fraction,
-        len(profiles),
-        len(distances),
-        max(distances),
+def site_geometry(
+    candidate: Candidate,
+    layers: Layers,
+    inland_m: float,
+    deltaic: bool,
+    is_water: WaterTest,
+) -> GeometryResult:
+    opened = open_sea(layers.sea, int(round(OPEN_SEA_ERODE_M / PIXEL_M)))
+    raw = coast_line(opened, layers.grid.transform, layers.center)
+
+    def is_open(xs: FloatArray, ys: FloatArray) -> BoolArray:
+        return _sample_mask(layers.grid, opened, xs, ys)
+
+    smooth = orient_sea_left(smooth_line(raw), is_open)
+    coast = LineString(_resample(smooth, STORE_STEP_M))
+    raw_oriented = orient_sea_left(raw, is_open)
+    length = required_profile_length([inland_m], PROFILE_MARGIN_M)
+    draft = Site(
+        candidate.candidate_id, candidate.name, coast, (1.0, 0.0), deltaic, length, inland_m
     )
+    profiles = make_profiles(draft)
+    valid = profile_valid(profiles, is_water)
+    kept = [p for p, ok in zip(profiles, valid, strict=True) if ok]
+    dropped = tuple(p.index for p, ok in zip(profiles, valid, strict=True) if not ok)
+    mean_dir = np.mean([p.direction for p in kept or profiles], axis=0)
+    seaward = mean_dir / np.linalg.norm(mean_dir)
+    site = Site(
+        candidate.candidate_id,
+        candidate.name,
+        coast,
+        (float(seaward[0]), float(seaward[1])),
+        deltaic,
+        length,
+        inland_m,
+        dropped,
+    )
+    records = [
+        {
+            "index": p.index,
+            "origin": [p.origin[0], p.origin[1]],
+            "end": list(profile_end(p)),
+            "direction": [p.direction[0], p.direction[1]],
+            "length_m": p.length_m,
+            "distance_to_coast_m": round(_distance_to_line(p, coast), 1),
+        }
+        for p in kept
+    ]
+    origins = np.array([p.origin for p in kept]) if kept else np.zeros((0, 2))
+    dem, _ = sample_layers(layers, origins[:, 0], origins[:, 1])
+    return GeometryResult(
+        site,
+        len(profiles),
+        records,
+        count_crossings(kept),
+        obliquity_deg(kept, raw_oriented, OBLIQUITY_HALF_M),
+        [float(v) for v in dem],
+    )
+
+
+def _worldcover_water(classes: NDArray[np.uint8], transform: Affine) -> WaterTest:
+    def is_water(xs: FloatArray, ys: FloatArray) -> BoolArray:
+        lon, lat = _TO_LONLAT.transform(np.asarray(xs), np.asarray(ys))
+        rows, cols = rowcol(transform, np.asarray(lon), np.asarray(lat))
+        rows, cols = np.asarray(rows), np.asarray(cols)
+        ok = (rows >= 0) & (rows < classes.shape[0]) & (cols >= 0) & (cols < classes.shape[1])
+        out = np.zeros(rows.shape, dtype=bool)
+        out[ok] = classes[rows[ok], cols[ok]] == WATER
+        return out
+
+    return is_water
+
+
+def _stat(values: list[float]) -> dict[str, float]:
+    arr = np.array([v for v in values if math.isfinite(v)])
+    if arr.size == 0:
+        return {"n": 0}
+    return {
+        "n": int(arr.size),
+        "median": round(float(np.median(arr)), 2),
+        "p90": round(float(np.percentile(arr, 90)), 2),
+        "max": round(float(arr.max()), 2),
+    }
+
+
+def _geometry_row(geo: GeometryResult, flat_value: float) -> dict[str, Any]:
+    dem = np.array(geo.origin_dem)
+    unflat = np.isfinite(dem) & (np.abs(dem - flat_value) >= FLAT_TOL_M)
+    n = int(unflat.sum())
+
+    def above(level: float) -> float | None:
+        return round(float((dem[unflat] > level).sum() / n), 3) if n else None
+
+    dropped = len(geo.site.dropped_profiles)
+    return {
+        "status": "ok" if geometry_ok(dropped, geo.total) else "FAILED GEOMETRY",
+        "inland_m": geo.site.inland_m,
+        "profile_length_m": geo.site.profile_length_m,
+        "coast_line_length_m": round(geo.site.reference_line.length, 1),
+        "profiles_total": geo.total,
+        "profiles_kept": len(geo.kept),
+        "profiles_dropped": dropped,
+        "dropped_indices": list(geo.site.dropped_profiles),
+        "crossing_pairs": geo.crossings,
+        "obliquity_vs_raw_coast_deg": _stat(geo.obliquity),
+        "distance_to_coast_m": _stat([r["distance_to_coast_m"] for r in geo.kept]),
+        "origin_dem_not_flattened": n,
+        "origin_share_above_level_2000_brief": above(LEVEL_2000_BRIEF_M),
+        "origin_share_above_flat_plus_rise": above(flat_value + LEVEL_RISE_2000_M),
+    }
 
 
 def _row(candidate: Candidate, snap_m: float, center: tuple[float, float]) -> dict[str, Any]:
@@ -655,6 +777,7 @@ def run(run_date: date) -> dict[str, Any]:
     classes, transform = _load_worldcover()
     caspian = caspian_component(classes, transform, CASPIAN_SEED_LONLAT)
     coast = _boundary(caspian)
+    is_water = _worldcover_water(classes, transform)
     rows: list[dict[str, Any]] = []
     sites: list[dict[str, Any]] = []
     for candidate in CANDIDATES:
@@ -664,33 +787,27 @@ def run(run_date: date) -> dict[str, Any]:
             rows.append({**row, "passed": False, "reasons": ["no Caspian boundary within 10 km"]})
             continue
         layers = build_layers((x, y), classes, caspian, transform)
-        stats, shares = band_stats(layers)
+        stats, shares, diag = band_stats(layers)
         verdict = evaluate(stats, in_kura_delta=candidate.in_kura_delta)
         row.update(
             {
                 **asdict(stats),
                 "class_shares": {str(k): round(v, 4) for k, v in sorted(shares.items())},
+                "dem_diagnostics": {k: round(v, 4) for k, v in diag.items()},
                 "passed": verdict.passed,
                 "deltaic": verdict.deltaic,
                 "reasons": list(verdict.reasons),
             }
         )
         if verdict.passed:
-            ref = reference_site(candidate, layers, verdict.deltaic)
-            row["reference"] = {
-                "method": ref.method,
-                "stations": ref.stations,
-                "stations_with_coast": ref.stations_with_coast,
-                "contour_fraction": round(ref.contour_fraction, 3),
-                "reference_line_length_m": round(ref.site.reference_line.length, 1),
-                "profiles": ref.profiles,
-                "profiles_reaching_sea": ref.profiles_reaching_sea,
-                "max_distance_to_class80_m": ref.max_distance_m,
-                "profile_length_m": ref.site.profile_length_m,
-            }
-            sites.append(site_to_dict(ref.site))
+            inland = INLAND_M[candidate.candidate_id]
+            wide = build_layers((x, y), classes, caspian, transform, half_m=GEOMETRY_GRID_HALF_M)
+            geo = site_geometry(candidate, wide, inland, verdict.deltaic, is_water)
+            row["geometry"] = _geometry_row(geo, diag["flat_value_m"])
+            if row["geometry"]["status"] == "ok":
+                sites.append({**site_to_dict(geo.site), "profiles": geo.kept})
         rows.append(row)
-        print(json.dumps(row), flush=True)
+        print(json.dumps({k: v for k, v in row.items() if k != "reason"}), flush=True)
     return {
         "crs": CRS,
         "run_date": run_date.isoformat(),
@@ -699,6 +816,11 @@ def run(run_date: date) -> dict[str, Any]:
             "coast": "ESA WorldCover 2021 class 80, 4-connected Caspian component",
             "dem": f"Copernicus DEM GLO-90 ({DEM_COLLECTION}, Planetary Computer)",
         },
+        "reference_line": (
+            "smoothed 2021 coast of the open-sea-connected class-80 water (opening 300 m, "
+            "largest component, 1 km moving average), sea on the left"
+        ),
+        "distance_uncertainty_m": DISTANCE_UNCERTAINTY_M,
         "sites": sites,
         "candidates": rows,
     }
@@ -711,7 +833,7 @@ def main() -> int:
     record = run(date.today())
     passed = len(record["sites"])
     if passed < MIN_SITES:
-        print(f"BLOCKED: {passed} candidate(s) pass, need {MIN_SITES}; sites.json not written")
+        print(f"BLOCKED: {passed} site(s) pass with usable geometry, need {MIN_SITES}; not written")
         return 1
     atomic_write(DEFAULT_SITES, (json.dumps(record, indent=2) + "\n").encode("utf-8"))
     print(f"{passed} sites written to {DEFAULT_SITES}")
