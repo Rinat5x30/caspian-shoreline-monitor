@@ -20,6 +20,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import rasterio
 from numpy.typing import NDArray
 from rasterio.enums import Resampling
 
@@ -235,11 +236,19 @@ def read_record(cache_dir: Path, site: Site, year: int) -> dict[str, Any]:
     return loaded[0]
 
 
+GDAL_HTTP = {
+    "GDAL_HTTP_MAX_RETRY": "6",
+    "GDAL_HTTP_RETRY_DELAY": "3",
+    "GDAL_HTTP_RETRY_CODES": "429,500,502,503,504",
+}
+
+
 def _read_scene(ref: S2SceneRef, grid: Grid) -> S2Bands:
     average = Resampling.average
-    green = landsat._warp(ref.hrefs["green"], grid, np.float32, average, 0, 0)
-    swir = landsat._warp(ref.hrefs["swir16"], grid, np.float32, average, 0, 0)
-    scl = landsat._warp(ref.hrefs["scl"], grid, np.uint8, Resampling.nearest, None, 0)
+    with rasterio.Env(**GDAL_HTTP):
+        green = landsat._warp(ref.hrefs["green"], grid, np.float32, average, 0, 0)
+        swir = landsat._warp(ref.hrefs["swir16"], grid, np.float32, average, 0, 0)
+        scl = landsat._warp(ref.hrefs["scl"], grid, np.uint8, Resampling.nearest, None, 0)
     return S2Bands(green.astype(float), swir.astype(float), scl)
 
 
