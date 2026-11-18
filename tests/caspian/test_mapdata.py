@@ -396,3 +396,71 @@ def test_real_texts_have_no_forbidden_words_and_secondary_matches_run_file() -> 
         assert site["sensitivity"]["weighted"]["r_diff"] == pytest.approx(
             float(m.group(1)), abs=1e-4
         )
+
+
+# ---------- fix round 1 ----------
+
+
+def test_every_site_has_caveat_notes_and_confirmed_notes_name_margin_and_thresholds(
+    synthetic_data: dict[str, object],
+) -> None:
+    for s in synthetic_data["sites"]:  # type: ignore[attr-defined]
+        notes = s["caveat_notes"]
+        assert notes and all(isinstance(n, str) and n for n in notes)
+        if s["report"]["verdict"] == "confirmed":
+            text = " ".join(notes)
+            assert "margin" in text and "threshold" in text and "fixed MNDWI" in text
+
+
+def test_exposed_area_definitions_and_noise_floor_origin(
+    synthetic_data: dict[str, object],
+) -> None:
+    for s in synthetic_data["sites"]:  # type: ignore[attr-defined]
+        d = s["exposed_km2"]["definition"]
+        assert "not sea-floor exposure" in d["whole_site_grid"]
+        assert "100 m of a profile line" in d["profile_strip"]
+        assert "Task 6 review" in d["profile_strip"]
+    report = build_report(synthetic_data)
+    assert "not sea-floor exposure" in report and "100 m of a profile line" in report
+    assert "Task 5 review of the cached masks" in mapdata.NOISE_FLOOR_NOTES["gizilaghaj"]
+    note = str(synthetic_data["meta"]["uncertainty_note"])  # type: ignore[index]
+    assert "single shore points are not drawn" in note and "n_points counts all" in note
+
+
+def test_report_has_no_unsupported_steep_and_no_duplicate_threshold_sentence(
+    synthetic_data: dict[str, object],
+) -> None:
+    report = build_report(synthetic_data)
+    assert "steep" not in report.lower()
+    assert report.count("Under fixed thresholds the overall outcome changes") == 1
+
+
+def test_qc_lists_s2_years(synthetic_data: dict[str, object]) -> None:
+    for s in synthetic_data["sites"]:  # type: ignore[attr-defined]
+        assert "s2_years" in s["qc"]
+
+
+@needs_cache
+def test_real_caveats_slope_qc_and_committed_data_not_stale() -> None:
+    committed = json.loads((ROOT / "web" / "data" / "caspian-data.json").read_text("utf-8"))
+    fresh = mapdata.build_real_data(
+        RUN_FILE,
+        committed["meta"]["reproducibility"],
+        generated=committed["meta"]["generated"],
+    )
+    assert json.loads(serialise(fresh)[0]) == committed
+    by = {s["id"]: s for s in fresh["sites"]}
+    giz = " ".join(by["gizilaghaj"]["caveat_notes"])
+    for word in ("margin", "2021-2025", "fixed MNDWI 0.0", "Right-censoring", "130", "100-200"):
+        assert word in giz
+    kura = " ".join(by["kura_delta"]["caveat_notes"])
+    assert "not shown" in kura and "dropped" in kura
+    lank = " ".join(by["lankaran_astara"]["caveat_notes"])
+    assert "Uninformative" in lank and "not shown, not refuted" in lank
+    assert "0.46 deg vs 0.07-0.19 deg" in lank
+    assert by["gizilaghaj"]["qc"]["s2_years"] == [2017, 2018, 2019, 2020, 2021, 2022]
+
+
+def test_build_script_runs_guarded_build_before_writing() -> None:
+    src = (ROOT / "scripts" / "build_caspian.py").read_text(encoding="utf-8")
+    assert src.index("build_real_data(") < src.index("serialise(") < src.index("write_bytes")

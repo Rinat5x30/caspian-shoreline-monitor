@@ -74,7 +74,20 @@ SENSITIVITY_LABEL = "sensitivity only"
 NOT_A_VALIDATION = "not a validation of the monitor"
 
 NOISE_FLOOR_NOTES: dict[str, str] = {
-    "gizilaghaj": "100-200 m annual noise floor estimated in review, see qc.md",
+    "gizilaghaj": "100-200 m annual noise floor; origin: estimate from the Task 5 review of the "
+    "cached masks (reviewers' estimate, not computed by this pipeline)",
+}
+UNCERTAINTY_NOTE = (
+    "uncertainty_m is never below 30 m (one Landsat pixel). Isolated single shore points are not "
+    "drawn (a segment needs two adjacent profiles); n_points counts all valid shore points; "
+    "fragmented lines are expected (segments_per_year gives the range per site)."
+)
+EXPOSED_DEFINITIONS: dict[str, str] = {
+    "whole_site_grid": "all water-to-land change over the site raster (2000 -> 2025), "
+    "not sea-floor exposure",
+    "profile_strip": "pixels within 100 m of a profile line (flat-capped buffer over the full "
+    "profile length); not comparable with the 19.7 / 1.4 / 0.1 km2 profile-strip figures of the "
+    "Task 6 review, which used a different definition",
 }
 REVIEWER_ESTIMATES: dict[str, Any] = {
     "source": "reviewers' estimates and simulations; not computed by this pipeline",
@@ -242,6 +255,7 @@ def build_shoreline_geojson(
                     "year": int(year),
                     "site_id": site.site_id,
                     "n_points": len(idx),
+                    "n_segments": len(lines),
                     "uncertainty_m": UNCERTAINTY_M,
                     "site_verdict": verdict_label(report.verdict) if report else None,
                 },
@@ -254,7 +268,7 @@ def build_shoreline_geojson(
             "name": site.name,
             "deltaic": site.deltaic,
             "noise_floor_note": NOISE_FLOOR_NOTES.get(site.site_id),
-            "uncertainty_note": "uncertainty_m is never below 30 m (one Landsat pixel)",
+            "uncertainty_note": UNCERTAINTY_NOTE,
         },
         "features": features,
     }
@@ -497,13 +511,15 @@ def _qc(site: Site, season: Season, a: SiteAnalysis) -> dict[str, Any]:
     try:
         rep = qc_against_landsat(a.detail.series, s2.series, site.site_id)
     except ValueError as exc:
-        return {"status": "not_computed", "reason": str(exc), "note": QC_NOTE}
+        return {"status": "not_computed", "reason": str(exc), "s2_years": [], "note": QC_NOTE}
     diag = qc_diagnostics(a.detail.series, s2.series)
     return {
         "status": "computed",
         "n_common_years": rep.n_years,
         "median_abs_diff_m": _num(rep.median_abs_diff_m, 2),
         "ok": rep.ok,
+        "mean_signed_diff_m": _num(diag.mean_signed_diff_m, 2),
+        "s2_years": sorted(diag.per_year_diff_m),
         "preliminary": rep.n_years < QC_FULL_YEARS,
         "flagged_years": [
             {"year": y, "diff_m": _num(v, 1)}
@@ -520,9 +536,15 @@ def _exposed(
     first, last = masks.get(period[0]), masks.get(period[-1])
     base: dict[str, Any] = {"from_year": period[0], "to_year": period[-1]}
     if first is None or last is None:
-        return {**base, "whole_site_grid": None, "profile_strip": None}
+        return {
+            **base,
+            "whole_site_grid": None,
+            "profile_strip": None,
+            "definition": EXPOSED_DEFINITIONS,
+        }
     return {
         **base,
+        "definition": EXPOSED_DEFINITIONS,
         "whole_site_grid": _num(exposed_area_km2(first, last), 2),
         "profile_strip": _num(exposed_area_strip_km2(a.site, first, last), 2),
     }
@@ -565,6 +587,15 @@ def build_caspian_data(
     retreat: dict[str, tuple[float, float] | None] = {}
     grid_area: dict[str, float | None] = {}
     strip_area: dict[str, float | None] = {}
+    facts = {s.site_id: _site_facts(s.site_id) for s in sites}
+    deltaic_slopes = [
+        facts[s.site_id]["slope_deg"]
+        for s in sites
+        if s.deltaic and facts[s.site_id]["slope_deg"] is not None
+    ]
+    deltaic_range = (
+        (min(deltaic_slopes), max(deltaic_slopes)) if deltaic_slopes else (math.nan, math.nan)
+    )
     for site in sites:
         a = analyses[site.site_id]
         masks = masks_by_site[site.site_id]
@@ -577,26 +608,30 @@ def build_caspian_data(
         retreat[site.site_id] = metres_per_cm_range(a.detail.series, level_series)
         confirmed = a.report.verdict == "confirmed"
         shoreline = build_shoreline_geojson(site, masks, reports, detail=a.detail)
-        site_blocks.append(
-            {
-                "id": site.site_id,
-                "name": site.name,
-                "deltaic": site.deltaic,
-                "caveats": _caveat(site.site_id),
-                "noise_floor_note": NOISE_FLOOR_NOTES.get(site.site_id),
-                "valid_years": [int(y) for y in a.detail.series.index[a.detail.series.notna()]],
-                "shoreline_years": [f["properties"]["year"] for f in shoreline["features"]],
-                "shoreline": shoreline,
-                "report": _report_dict(a.report),
-                "net_displacement_m": _net(a.detail.series),
-                "sensitivity": sensitivity,
-                "exposed_km2": exposed,
-                "qc": _qc(site, season, a),
-                "metres_per_cm_of_level_fall": (
-                    _range_text(rng) if confirmed and (rng := retreat[site.site_id]) else None
-                ),
-            }
-        )
+        seg = [f["properties"]["n_segments"] for f in shoreline["features"]]
+        block: dict[str, Any] = {
+            "id": site.site_id,
+            "name": site.name,
+            "deltaic": site.deltaic,
+            "caveats": facts[site.site_id]["caveat"],
+            "mean_dem_slope_deg": _num(facts[site.site_id]["slope_deg"] or math.nan, 2),
+            "profiles_dropped_share": facts[site.site_id]["dropped_share"],
+            "segments_per_year": [min(seg), max(seg)] if seg else None,
+            "noise_floor_note": NOISE_FLOOR_NOTES.get(site.site_id),
+            "valid_years": [int(y) for y in a.detail.series.index[a.detail.series.notna()]],
+            "shoreline_years": [f["properties"]["year"] for f in shoreline["features"]],
+            "shoreline": shoreline,
+            "report": _report_dict(a.report),
+            "net_displacement_m": _net(a.detail.series),
+            "sensitivity": sensitivity,
+            "exposed_km2": exposed,
+            "qc": _qc(site, season, a),
+            "metres_per_cm_of_level_fall": (
+                _range_text(rng) if confirmed and (rng := retreat[site.site_id]) else None
+            ),
+        }
+        block["caveat_notes"] = _caveat_notes(block, deltaic_range)
+        site_blocks.append(block)
     table = build_summary_table(reports, grid_area, strip_area, retreat)
     return {
         "meta": {
@@ -612,7 +647,8 @@ def build_caspian_data(
             "min_common_years": validate.MIN_COMMON_YEARS,
             "seed": seed,
             "uncertainty_m": UNCERTAINTY_M,
-            "uncertainty_note": "never below 30 m: one Landsat pixel",
+            "uncertainty_note": UNCERTAINTY_NOTE,
+            "deltaic_slope_range_deg": [_num(x, 2) for x in deltaic_range],
             "level_datum_note": "G-REALM heights are relative to the Jason-2 reference-pass mean, "
             "not to a geodetic datum",
             "r_diff_definition": "Pearson(dD, -dL) over adjacent-year differences; "
@@ -651,11 +687,105 @@ def _net(series: pd.Series) -> float | None:
     return _num(float(valid.iloc[-1] - valid.iloc[0]), 1) if len(valid) >= 2 else None
 
 
-def _caveat(site_id: str) -> str | None:
-    for item in json.loads(DEFAULT_SITES.read_text(encoding="utf-8"))["sites"]:
-        if item["site_id"] == site_id:
-            return str(item["geometry_caveat"]) if item.get("geometry_caveat") else None
-    return None
+def _site_facts(site_id: str) -> dict[str, Any]:
+    data = json.loads(DEFAULT_SITES.read_text(encoding="utf-8"))
+    item: dict[str, Any] = next((i for i in data["sites"] if i["site_id"] == site_id), {})
+    cand: dict[str, Any] = next(
+        (c for c in data.get("candidates", []) if c["candidate_id"] == site_id), {}
+    )
+    share = item.get("dropped_share")
+    return {
+        "caveat": str(item["geometry_caveat"]) if item.get("geometry_caveat") else None,
+        "dropped_share": None if share is None else round(float(share), 4),
+        "slope_deg": cand.get("mean_slope_deg"),
+    }
+
+
+def slope_clause(slope: float | None, deltaic_range: Sequence[float]) -> str:
+    if slope is None or deltaic_range[1] is None or not slope > deltaic_range[1]:
+        return ""
+    return (
+        f"a coast with a larger mean DEM slope ({slope:.2f} deg vs "
+        f"{deltaic_range[0]:.2f}-{deltaic_range[1]:.2f} deg for the deltaic sites)"
+    )
+
+
+def _caveat_notes(b: dict[str, Any], deltaic_range: Sequence[float]) -> list[str]:
+    r, sens, est = b["report"], b["sensitivity"], REVIEWER_ESTIMATES
+    thr = validate.R_DIFF_MIN
+    notes: list[str] = []
+    if r["verdict"] == "confirmed":
+        notes.append(
+            f"Small margin: r_diff {_f(r['r_diff'])} against the threshold {thr}; "
+            "low power, so this is not a strong result."
+        )
+        later = (
+            "the accelerated level fall of 2021-2025" if b["id"] == CENSORED_SITE else "later years"
+        )
+        notes.append(
+            f"The signal comes mainly from {later}: r_diff using pairs up to "
+            f"{EARLY_PAIRS_LAST_YEAR} is {_f(sens['r_diff_pairs_to_2018'])}."
+        )
+        failed = [t for t in sens["fixed_threshold"] if not t["criterion_met"]]
+        notes.append(
+            "Threshold sensitivity: "
+            + (
+                "; ".join(
+                    f"criterion not met at fixed MNDWI {t['threshold']} "
+                    f"(r_diff {_f(t['r_diff'], 3)})"
+                    for t in failed
+                )
+                if failed
+                else "criterion met at all fixed MNDWI thresholds"
+            )
+            + f" ({SENSITIVITY_LABEL})."
+        )
+    elif r["verdict"] == "not_confirmed":
+        notes.append("'Not confirmed' means not shown, not refuted: the test has low power.")
+        parts = []
+        if r["rmse_model"] is not None and r["rmse_model"] < r["rmse_baseline"]:
+            parts.append("RMSE below the time-trend baseline")
+        if r["r_diff_ci_low"] is not None and r["r_diff_ci_low"] > 0:
+            parts.append("CI lower end above zero")
+        if r["r_diff"] is not None and r["r_diff"] < thr:
+            parts.append(f"r_diff {_f(r['r_diff'])} below the threshold {thr}")
+        if parts:
+            notes.append("Conditions: " + "; ".join(parts) + ".")
+    else:
+        notes.append(f"Not measurable: {r['reason']}.")
+    if b["deltaic"] and b["profiles_dropped_share"] is not None:
+        notes.append(
+            f"Deltaic site; {b['profiles_dropped_share'] * 100:.0f} % of the candidate profiles "
+            "were dropped in site selection (see caveats)."
+        )
+    if b["id"] == CENSORED_SITE:
+        notes.append(
+            "Right-censoring in 2024-2025 (profiles whose shoreline lies beyond the profile end "
+            "are NaN) and the complete-profile-set composition effect of about "
+            f"+-{est['composition_effect_m']} m (reviewers' estimate)."
+        )
+    if b["noise_floor_note"]:
+        notes.append(b["noise_floor_note"] + ".")
+    net = b["net_displacement_m"]
+    if (
+        net is not None
+        and r["verdict"] == "not_confirmed"
+        and abs(net) < UNINFORMATIVE_PIXELS * RESOLUTION_M
+    ):
+        text = (
+            f"Uninformative: the shoreline moved about {abs(net):.0f} m "
+            f"(about {abs(net) / RESOLUTION_M:.1f} Landsat pixels) in the period"
+        )
+        if any(f["year"] == ARTEFACT_PAIR_YEARS[0] for f in b["qc"].get("flagged_years", [])):
+            text += (
+                f"; r_diff without the {ARTEFACT_PAIR_YEARS[0]}-{ARTEFACT_PAIR_YEARS[1]} pairs is "
+                f"{_f(b['sensitivity']['r_diff_without_2020_2021_pairs'])} "
+                f"(one {ARTEFACT_PAIR_YEARS[0]} artefact)"
+            )
+        clause = slope_clause(b["mean_dem_slope_deg"], deltaic_range)
+        text += "; a limitation of 30 m imagery" + (f" on {clause}" if clause else "")
+        notes.append(text + "; not shown, not refuted.")
+    return notes
 
 
 # ---------- serialisation ----------
@@ -878,12 +1008,11 @@ def build_report(data: Mapping[str, Any]) -> str:
         *[_site_row(s) for s in sites],
         "",
         "RMSE in metres of level. Exposed area is land that was water in the first and is land in "
-        f"the last year ({meta['period'][0]}-{meta['period'][1]}); it is counted over the whole "
-        "site "
-        "grid, and the value inside the profile strip is shown beside it. Raw r is shown only "
+        f"the last year ({meta['period'][0]}-{meta['period'][1]}). Whole site grid: "
+        f"{sites[0]['exposed_km2']['definition']['whole_site_grid']}. Profile strip: "
+        f"{sites[0]['exposed_km2']['definition']['profile_strip']}. Raw r is shown only "
         "because both series trend; it is not evidence of coupling. Retreat per cm is given only "
-        "for "
-        "a site with the per-site verdict 'confirmed (protocol)', as the range between the two "
+        "for a site with the per-site verdict 'confirmed (protocol)', as the range between the two "
         "regression directions.",
         "",
         "Reasons for the other sites:",
@@ -958,7 +1087,7 @@ def _qc_row(s: dict[str, Any]) -> str:
 
 
 OVERALL_WORDS = {
-    "confirmed": "at the top level",
+    "confirmed": "confirmed (protocol)",
     "partial": "partial",
     "not_confirmed": "not_confirmed",
 }
@@ -1019,7 +1148,8 @@ def _description_paragraphs(data: Mapping[str, Any], est: Mapping[str, Any]) -> 
             )
     paras.append(
         "**Sensitivity of the overall verdict.** The overall verdict depends on analytic choices "
-        "at the noise level. " + _threshold_sentence(data)
+        "at the noise level (fixed-threshold outcomes in section 5); the protocol verdict "
+        "stands."
     )
     paras.append(
         f"**Low power.** The test has about {est['power_per_site_percent']} % power per site and "
@@ -1034,15 +1164,16 @@ def _description_paragraphs(data: Mapping[str, Any], est: Mapping[str, Any]) -> 
             and r["verdict"] == "not_confirmed"
             and abs(net) < UNINFORMATIVE_PIXELS * RESOLUTION_M
         ):
+            clause = slope_clause(s["mean_dem_slope_deg"], meta["deltaic_slope_range_deg"])
             paras.append(
                 f"**{s['id']} is uninformative.** The shoreline moved about {abs(net):.0f} m "
                 f"(about {abs(net) / RESOLUTION_M:.1f} Landsat pixels) in "
                 f"{meta['period'][1] - meta['period'][0]} years. r_diff is {_f(r['r_diff'])}; "
                 f"without the 2020-2021 pairs it is {_f(sens['r_diff_without_2020_2021_pairs'])}. "
                 "The negative value follows one 2020 artefact. This is a limitation of 30 m "
-                "imagery "
-                "on a steeper coast (compared with the deltaic sites), not evidence against the "
-                "physical relation."
+                "imagery"
+                + (f" on {clause}" if clause else "")
+                + ", not evidence against the physical relation."
             )
     paras.append(
         "**Always stated with the results.** "
@@ -1064,8 +1195,7 @@ def _description_paragraphs(data: Mapping[str, Any], est: Mapping[str, Any]) -> 
 
 
 NOISE_FLOOR_TEXT = {
-    "gizilaghaj": "The annual noise floor of this site is estimated in review at 100-200 m "
-    "(see qc.md).",
+    "gizilaghaj": "Noise floor: " + NOISE_FLOOR_NOTES["gizilaghaj"] + ".",
 }
 
 

@@ -30,7 +30,7 @@ Sign convention, disclosed: the specification says 'not lower than 0.5' without 
 | kura_delta | not confirmed (protocol) | 25 / 23 | 0.207 | 0.257 | 0.41 | 0.07 | 0.96 | 33.1 | 8.0 | - |
 | lankaran_astara | not confirmed (protocol) | 25 / 23 | 0.726 | 0.257 | -0.37 | -0.66 | 0.60 | 0.8 | 0.7 | - |
 
-RMSE in metres of level. Exposed area is land that was water in the first and is land in the last year (2000-2025); it is counted over the whole site grid, and the value inside the profile strip is shown beside it. Raw r is shown only because both series trend; it is not evidence of coupling. Retreat per cm is given only for a site with the per-site verdict 'confirmed (protocol)', as the range between the two regression directions.
+RMSE in metres of level. Exposed area is land that was water in the first and is land in the last year (2000-2025). Whole site grid: all water-to-land change over the site raster (2000 -> 2025), not sea-floor exposure. Profile strip: pixels within 100 m of a profile line (flat-capped buffer over the full profile length); not comparable with the 19.7 / 1.4 / 0.1 km2 profile-strip figures of the Task 6 review, which used a different definition. Raw r is shown only because both series trend; it is not evidence of coupling. Retreat per cm is given only for a site with the per-site verdict 'confirmed (protocol)', as the range between the two regression directions.
 
 Reasons for the other sites:
 
@@ -73,19 +73,19 @@ These analyses are reported beside the verdict and never change it. 'Criterion m
 | lankaran_astara | fixed MNDWI threshold 0.2 | -0.164 | -0.551 | criterion not met |
 | lankaran_astara | block bootstrap CI (length 3) | n/a | [-0.656, 0.313] | n/a |
 
-Under fixed thresholds the overall outcome changes between variants (fixed MNDWI 0.0: overall outcome partial (criterion met at kura_delta); fixed MNDWI 0.1: overall outcome at the top level (criterion met at gizilaghaj, kura_delta); fixed MNDWI 0.2: overall outcome partial (criterion met at gizilaghaj)). These are sensitivity analyses; the protocol verdict stands.
+Under fixed thresholds the overall outcome changes between variants (fixed MNDWI 0.0: overall outcome partial (criterion met at kura_delta); fixed MNDWI 0.1: overall outcome confirmed (protocol) (criterion met at gizilaghaj, kura_delta); fixed MNDWI 0.2: overall outcome partial (criterion met at gizilaghaj)). These are sensitivity analyses; the protocol verdict stands.
 
 ## 6. How the result may and may not be described
 
 **Overall.** The protocol verdict is partial (1 of 3 measurable sites). The result must not be described as showing that the monitor or the relation between shoreline and sea level is established; it is not a validation of the monitor.
 
-**gizilaghaj (confirmed (protocol)).** The margin is small: r_diff 0.56 against the threshold 0.5, and the criterion is not met at fixed MNDWI 0.0 (r_diff 0.489). Using only pairs up to 2018 r_diff is 0.21, so the signal comes mainly from the later, accelerated level fall. Under a null of no relation a false 'confirmed (protocol)' is rare (below 1 % per site for linear-trend or random-walk nulls, about 5.5 % under an independent accelerating trend; reviewers' simulation). Retreat per cm of level fall: about 20-22 m; the level is relative to a satellite datum. The annual noise floor of this site is estimated in review at 100-200 m (see qc.md).
+**gizilaghaj (confirmed (protocol)).** The margin is small: r_diff 0.56 against the threshold 0.5, and the criterion is not met at fixed MNDWI 0.0 (r_diff 0.489). Using only pairs up to 2018 r_diff is 0.21, so the signal comes mainly from the later, accelerated level fall. Under a null of no relation a false 'confirmed (protocol)' is rare (below 1 % per site for linear-trend or random-walk nulls, about 5.5 % under an independent accelerating trend; reviewers' simulation). Retreat per cm of level fall: about 20-22 m; the level is relative to a satellite datum. Noise floor: 100-200 m annual noise floor; origin: estimate from the Task 5 review of the cached masks (reviewers' estimate, not computed by this pipeline).
 
-**Sensitivity of the overall verdict.** The overall verdict depends on analytic choices at the noise level. Under fixed thresholds the overall outcome changes between variants (fixed MNDWI 0.0: overall outcome partial (criterion met at kura_delta); fixed MNDWI 0.1: overall outcome at the top level (criterion met at gizilaghaj, kura_delta); fixed MNDWI 0.2: overall outcome partial (criterion met at gizilaghaj)). These are sensitivity analyses; the protocol verdict stands.
+**Sensitivity of the overall verdict.** The overall verdict depends on analytic choices at the noise level (fixed-threshold outcomes in section 5); the protocol verdict stands.
 
 **Low power.** The test has about 30 % power per site and about 8 % for an overall 'confirmed (protocol)' even if the relation is real (reviewers' estimate). 'Not confirmed' at a site therefore means not shown, not refuted.
 
-**lankaran_astara is uninformative.** The shoreline moved about 39 m (about 1.3 Landsat pixels) in 25 years. r_diff is -0.37; without the 2020-2021 pairs it is 0.24. The negative value follows one 2020 artefact. This is a limitation of 30 m imagery on a steeper coast (compared with the deltaic sites), not evidence against the physical relation.
+**lankaran_astara is uninformative.** The shoreline moved about 39 m (about 1.3 Landsat pixels) in 25 years. r_diff is -0.37; without the 2020-2021 pairs it is 0.24. The negative value follows one 2020 artefact. This is a limitation of 30 m imagery on a coast with a larger mean DEM slope (0.46 deg vs 0.07-0.19 deg for the deltaic sites), not evidence against the physical relation.
 
 **Always stated with the results.** 25 annual values and 23 adjacent-year pairs per site (2003 is missing). At gizilaghaj the last years are right-censored: profiles whose shoreline lies beyond the profile end are NaN, and the set of valid profiles changes (composition effect about +-130 m, reviewers' estimate). Exposed area is counted over the whole site grid; the profile-strip value is shown too. The Sentinel-2 check compares two optical sensors under one method, so it shows consistency, not ground-truth accuracy (preliminary for gizilaghaj: fewer than the full set of years). r_diff = Pearson(dD, -dL) with an iid bootstrap interval. The topic is already studied (EGU24-14488; Gasimov 2021). The 218 km2 of exposed land in EGU24-14488 refers to a different place and period and is NOT a validation of this work.
 
@@ -101,7 +101,7 @@ Under fixed thresholds the overall outcome changes between variants (fixed MNDWI
 
 ## 8. Reproducibility
 
-- Protocol commit: `5ac7d0f`. Run output commit: `bb16513`. Build commit (HEAD at build time): `c51472e`.
+- Protocol commit: `5ac7d0f`. Run output commit: `bb16513`. Build commit (HEAD at build time): `64f6674`.
 - sha256 of `docs/caspian/validation-run.txt`: `00c19d0cfd43edaa2e6b22043d037540765ea00cb058b5081b5f617850cf87f6`.
 - The build recomputes all site reports from cached masks and the committed G-REALM file without network and stops with an error if rmse_model, rmse_baseline, r_diff or the lower interval end differs from the committed run output by more than 1e-4.
 - Commands: `python scripts/run_caspian_validation.py` (the single pre-registered run; re-running is allowed only to reproduce the file byte for byte) and `python scripts/build_caspian.py` (writes `web/data/caspian-data.js`, `web/data/caspian-data.json` and this report).

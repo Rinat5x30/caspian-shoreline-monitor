@@ -51,6 +51,8 @@ def main() -> None:
     (WEB_DATA / "caspian-data.json").write_bytes(json_text.encode("utf-8"))
     (WEB_DATA / "caspian-data.js").write_bytes(js_text.encode("utf-8"))
     REPORT_PATH.write_bytes(build_report(data).encode("utf-8"))
+    for site in data["sites"]:
+        print(f"S2 QC years {site['id']}: {site['qc']['s2_years']}")
     for path in (WEB_DATA / "caspian-data.js", WEB_DATA / "caspian-data.json", REPORT_PATH):
         print(f"{path.relative_to(ROOT)}: {path.stat().st_size} bytes")
 
