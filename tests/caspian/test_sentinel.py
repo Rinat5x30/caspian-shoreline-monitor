@@ -43,8 +43,14 @@ def _site() -> Site:
     return Site("t", "T", line, (1.0, 0.0), False, 1500.0, 500.0)
 
 
-def _dn(refl: NDArray[np.float64] | float) -> NDArray[np.float64]:
-    return np.asarray(np.round(np.asarray(refl) * 10000.0 + 1000.0), dtype=float)
+def _dn(refl: NDArray[np.float64] | float, old: bool = False) -> NDArray[np.float64]:
+    """Digital numbers: old baseline (< 04.00) has no +1000 offset, new baseline has."""
+    return np.asarray(np.round(np.asarray(refl) * 10000.0 + (0.0 if old else 1000.0)), dtype=float)
+
+
+def _offset_for(baseline: str) -> float:
+    major, minor = (int(part) for part in baseline.split("."))
+    return 0.0 if (major, minor) < (4, 0) else -0.1
 
 
 def _ref(day: date, sid: str = "S", cloud: float = 10.0, baseline: str = "05.11") -> S2SceneRef:
@@ -57,7 +63,7 @@ def _ref(day: date, sid: str = "S", cloud: float = 10.0, baseline: str = "05.11"
         {"green": "g", "swir16": "s", "scl": "c"},
         baseline,
         0.0001,
-        -0.1,
+        _offset_for(baseline),
     )
 
 
@@ -66,10 +72,10 @@ def _sea_east(grid: Grid) -> NDArray[np.bool_]:
     return np.broadcast_to(x > X0, (grid.height, grid.width)).copy()
 
 
-def _bands(grid: Grid, scl: NDArray[np.uint8] | None = None) -> S2Bands:
+def _bands(grid: Grid, scl: NDArray[np.uint8] | None = None, old: bool = False) -> S2Bands:
     water = _sea_east(grid)
-    green = _dn(np.where(water, 0.10, 0.20))
-    swir = _dn(np.where(water, 0.02, 0.30))
+    green = _dn(np.where(water, 0.10, 0.20), old)
+    swir = _dn(np.where(water, 0.02, 0.30), old)
     return S2Bands(green, swir, np.full(green.shape, 4, np.uint8) if scl is None else scl)
 
 
@@ -272,6 +278,67 @@ def test_water_mask_matches_truth_and_cache_record(tmp_path: Path) -> None:
     assert (tmp_path / "sentinel_water_t_2020.npz").exists()
 
 
+def test_ref_helper_derives_offset_from_baseline() -> None:
+    assert _ref(date(2020, 7, 3), baseline="02.12").offset == 0.0
+    assert _ref(date(2020, 7, 3), baseline="03.01").offset == 0.0
+    assert _ref(date(2020, 7, 3), baseline="04.00").offset == -0.1
+    assert _ref(date(2020, 7, 3), baseline="05.11").offset == -0.1
+
+
+def test_old_and_new_baseline_give_same_mndwi_with_matching_offset() -> None:
+    grid = Grid(X0, Y0, 30.0, 4, 4)
+    old, new = _bands(grid, old=True), _bands(grid)
+    assert not np.array_equal(old.green_dn, new.green_dn)
+    m_old, v_old = sentinel.scene_mndwi_s2(old, 0.0001, 0.0)
+    m_new, v_new = sentinel.scene_mndwi_s2(new, 0.0001, -0.1)
+    assert v_old.all() and v_new.all()
+    assert np.allclose(m_old, m_new, atol=1e-3)
+    wrong, _ = sentinel.scene_mndwi_s2(old, 0.0001, -0.1)
+    assert not np.allclose(wrong, m_new, atol=1e-2)
+
+
+def test_mixed_baselines_composite_matches_truth_and_mndwi_values(tmp_path: Path) -> None:
+    grid = site_grid(_site())
+    west = np.zeros((grid.height, grid.width), dtype=bool)
+    west[:, : grid.width // 2] = True
+
+    def half(mask: NDArray[np.bool_], old: bool) -> S2Bands:
+        return _bands(grid, np.where(mask, 0, 4).astype(np.uint8), old)
+
+    refs = [
+        _ref(date(2020, 7, 3), "OLD1", baseline="02.12"),
+        _ref(date(2020, 7, 12), "OLD2", baseline="03.01"),
+        _ref(date(2020, 7, 20), "NEW1", baseline="05.11"),
+        _ref(date(2020, 8, 1), "NEW2", baseline="04.00"),
+        _ref(date(2020, 8, 9), "MIX-a", baseline="02.12"),
+        _ref(date(2020, 8, 9), "MIX-b", baseline="05.10"),
+    ]
+    per = {
+        "OLD1": _bands(grid, old=True),
+        "OLD2": _bands(grid, old=True),
+        "MIX-a": half(~west, True),
+        "MIX-b": half(west, False),
+    }
+    result = _run(Fakes(refs, per), tmp_path)
+    assert result is not None and result.valid.all() and result.n_scenes == 5
+    truth = _sea_east(grid)
+    assert np.array_equal(result.water, truth)
+    assert result.mndwi is not None
+    assert np.allclose(result.mndwi[truth], 0.08 / 0.12, atol=0.01)
+    assert np.allclose(result.mndwi[~truth], -0.1 / 0.5, atol=0.01)
+
+
+def test_old_baseline_scene_alone_is_decoded_with_zero_offset(tmp_path: Path) -> None:
+    grid = site_grid(_site())
+    refs = [_ref(date(2020, 7, d), f"O{d}", baseline="02.12") for d in (3, 12, 20)]
+    per = {r.scene_id: _bands(grid, old=True) for r in refs}
+    result = _run(Fakes(refs, per), tmp_path)
+    assert result is not None and result.mndwi is not None
+    truth = _sea_east(grid)
+    assert np.allclose(result.mndwi[truth], 0.08 / 0.12, atol=0.01)
+    assert np.allclose(result.mndwi[~truth], -0.1 / 0.5, atol=0.01)
+
+
 def test_scl_cloud_pixels_masked_in_composite(tmp_path: Path) -> None:
     grid = site_grid(_site())
     scl = np.full((grid.height, grid.width), 4, dtype=np.uint8)
@@ -456,6 +523,27 @@ def test_read_scene_nodata_not_averaged_and_scl_nearest(tmp_path: Path) -> None:
     assert bands.green_dn[0, 0] == 0
     assert bands.green_dn[1, 1] == pytest.approx(3000.0, abs=0.5)
     assert bands.scl[0, 0] == 9 and bands.scl[2, 2] == 4
+
+
+def test_partial_nodata_in_block_is_excluded_from_the_mean(tmp_path: Path) -> None:
+    grid = Grid(X0, Y0, 30.0, 3, 3)
+    b03 = np.full((9, 9), 3000, dtype=np.uint16)
+    b03[3, 3] = 0
+    b03[4, 5] = 0
+    b11 = np.full((5, 5), 3000, dtype=np.uint16)
+    scl = np.full((5, 5), 4, dtype=np.uint8)
+    t10 = Affine(10.0, 0.0, X0, 0.0, -10.0, Y0)
+    t20 = Affine(20.0, 0.0, X0, 0.0, -20.0, Y0)
+    ref = _s2_ref(
+        {
+            "green": _tif(tmp_path / "g.tif", b03, t10, 0),
+            "swir16": _tif(tmp_path / "s.tif", b11, t20, 0),
+            "scl": _tif(tmp_path / "c.tif", scl, t20, None),
+        }
+    )
+    bands = sentinel._read_scene(ref, grid)
+    assert bands.green_dn[1, 1] == pytest.approx(3000.0, abs=0.5)
+    assert (bands.green_dn > 0).all()
 
 
 def test_real_read_path_end_to_end(tmp_path: Path) -> None:

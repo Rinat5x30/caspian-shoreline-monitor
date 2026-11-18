@@ -3,8 +3,10 @@
 Same season, grid, composite, Otsu threshold, gates and shoreline rules as the Landsat series;
 only the sensor differs. Bands B03 (10 m) and B11 (20 m) are area-averaged onto the Landsat
 30 m EPSG:32639 grid of the site; the SCL class is sampled nearest (coarse: a 30 m pixel is
-invalid if the nearest SCL pixel is a masked class). Decisions: data/raw/caspian/SOURCES.md,
-section "Sentinel-2 QC". No sea-level data are used here.
+invalid if the nearest SCL pixel is a masked class). Read errors: rasterio's RasterioIOError is an
+OSError subclass and is retried (as in Landsat); other rasterio errors, e.g. WarpOperationError,
+are not OSError and raise at once. GDAL-level HTTP retries are limited to codes 429/5xx.
+Decisions: data/raw/caspian/SOURCES.md, section "Sentinel-2 QC". No sea-level data are used here.
 """
 
 import calendar
