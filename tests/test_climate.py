@@ -199,3 +199,52 @@ def test_cache_file_content_is_json(tmp_path: Path) -> None:
     _run(tmp_path, FakeHttp())
     data = json.loads((tmp_path / "climate_alpha_2021.json").read_text(encoding="utf-8"))
     assert data["region_id"] == "alpha" and data["year"] == 2021
+
+
+def test_cache_not_reused_after_window_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    http = FakeHttp(_payload(2020, 2021))
+    _run(tmp_path, http)
+    monkeypatch.setattr("wheatwatch.climate.SEASON_END", (6, 15))
+    result = _run(tmp_path, http)
+    assert len(http.urls) == 2
+    assert result["precip_mm"].iloc[0] == pytest.approx(107.0)
+
+
+def test_cache_with_other_source_or_variables_is_miss(tmp_path: Path) -> None:
+    http = FakeHttp(_payload(2020, 2021))
+    _run(tmp_path, http)
+    path = tmp_path / "climate_alpha_2020.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["variables"] = ["other"]
+    path.write_text(json.dumps(record), encoding="utf-8")
+    _run(tmp_path, http)
+    assert len(http.urls) == 2
+
+
+def test_nan_result_is_not_cached_and_is_refetched(tmp_path: Path) -> None:
+    bad = _payload(2020, 2020, overrides={"2020-04-10": (None, None)})
+    http = FakeHttp(bad)
+    first = _run(tmp_path, http, [2020])
+    assert np.isnan(first["precip_mm"].iloc[0])
+    assert not list(tmp_path.glob("climate_*"))
+    http.payload = _payload(2020, 2020)
+    second = _run(tmp_path, http, [2020])
+    assert len(http.urls) == 2
+    assert second["precip_mm"].iloc[0] == pytest.approx(122.0)
+
+
+def test_request_uses_gmt_timezone(tmp_path: Path) -> None:
+    http = FakeHttp()
+    _run(tmp_path, http)
+    assert "timezone=GMT" in http.urls[0]
+
+
+def test_partly_cached_region_fetches_only_missing_years(tmp_path: Path) -> None:
+    _run(tmp_path, FakeHttp(_payload(2020, 2020)), [2020])
+    http = FakeHttp(_payload(2021, 2021))
+    result = _run(tmp_path, http, [2020, 2021])
+    assert len(http.urls) == 1
+    assert "start_date=2021-01-01" in http.urls[0] and "end_date=2021-12-31" in http.urls[0]
+    assert len(result) == 2

@@ -1,5 +1,13 @@
+"""Season climate per region from Open-Meteo (ERA5), daily aggregates over GMT days.
+
+Raw ERA5 levels are biased in mountain districts (one point per region on a ~25 km grid,
+e.g. guba 2022 tmax about 8 C); downstream features must use per-region standardized
+anomalies (z-scores), not raw levels.
+"""
+
 import json
 import logging
+import math
 import time
 import urllib.error
 import urllib.request
@@ -21,6 +29,8 @@ SEASON_END = (6, 30)
 MAX_ATTEMPTS = 6
 BACKOFF_BASE_S = 2.0
 REGION_PAUSE_S = 1.0
+VARIABLES = ["precipitation_sum", "temperature_2m_max"]
+SOURCE = "open-meteo-era5"
 _COLUMNS = ["region_id", "year", "precip_mm", "tmax_mean_c"]
 
 Fetch = Callable[[str], dict[str, Any]]
@@ -61,7 +71,7 @@ def _url(lat: float, lon: float, first: int, last: int) -> str:
     return (
         f"{API_URL}?latitude={lat:.4f}&longitude={lon:.4f}"
         f"&start_date={first}-01-01&end_date={last}-12-31"
-        "&daily=precipitation_sum,temperature_2m_max&timezone=GMT"
+        f"&daily={','.join(VARIABLES)}&timezone=GMT"
     )
 
 
@@ -98,24 +108,29 @@ def _cache_path(cache_dir: Path, region_id: str, year: int) -> Path:
 def _read_cache(path: Path, region_id: str, year: int) -> tuple[float, float] | None:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        if data["region_id"] != region_id or data["year"] != year:
+        if (
+            data["region_id"] != region_id
+            or data["year"] != year
+            or data["source"] != SOURCE
+            or data["variables"] != VARIABLES
+            or tuple(data["window"]) != _window(year)
+        ):
             return None
-        precip, tmax = data["precip_mm"], data["tmax_mean_c"]
-        if precip is None or tmax is None:
-            return float("nan"), float("nan")
-        return float(precip), float(tmax)
+        precip, tmax = float(data["precip_mm"]), float(data["tmax_mean_c"])
+        return (precip, tmax) if not (math.isnan(precip) or math.isnan(tmax)) else None
     except (OSError, ValueError, KeyError, TypeError):
         return None
 
 
 def _write_cache(path: Path, region_id: str, year: int, precip: float, tmax: float) -> None:
-    ok = precip == precip and tmax == tmax
     record = {
         "region_id": region_id,
         "year": year,
-        "precip_mm": precip if ok else None,
-        "tmax_mean_c": tmax if ok else None,
-        "source": "open-meteo-era5",
+        "precip_mm": precip,
+        "tmax_mean_c": tmax,
+        "source": SOURCE,
+        "variables": VARIABLES,
+        "window": list(_window(year)),
     }
 
     def write(tmp: Path) -> None:
@@ -157,7 +172,10 @@ def season_climate(
                         year,
                         missing,
                     )
-                _write_cache(_cache_path(cache_dir, region_id, year), region_id, year, precip, tmax)
+                else:
+                    _write_cache(
+                        _cache_path(cache_dir, region_id, year), region_id, year, precip, tmax
+                    )
                 found[year] = (precip, tmax)
         rows.extend((str(region_id), y, *found[y]) for y in years)
     frame = pd.DataFrame(rows, columns=_COLUMNS)
