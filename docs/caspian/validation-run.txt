@@ -1,0 +1,153 @@
+Caspian shoreline vs sea level: pre-registered validation run
+protocol=docs/caspian/validation-protocol.md  season=(7, 8)  period=2000-2025
+R_DIFF_MIN=0.5  N_BOOT=2000  MIN_COMMON_YEARS=10  seed=0
+D = unweighted site displacement (m, positive = retreat of the sea); L = season mean G-REALM level (m, relative)
+
+years without a cached mask (treated as no mask) gizilaghaj: [2003]
+years without a cached mask (treated as no mask) kura_delta: []
+years without a cached mask (treated as no mask) lankaran_astara: [2003]
+
+== PRIMARY gizilaghaj  measurable=True
+site_id=gizilaghaj
+verdict=confirmed
+reason=all conditions met
+n_years=25  n_pairs=23
+rmse_model=0.191540  rmse_baseline=0.257257
+r_diff=0.563470  r_diff_ci_low=0.270159  ci_high=0.781401
+degenerate_share=0.000000  raw_r=0.966993  slope_b=-0.00046414
+
+year  D_m  L_m  dD_m  dL_m  (differences only between adjacent years)
+2000  8016.623  0.2700  nan  nan
+2001  7884.740  0.2133  -131.883  -0.0567
+2002  8275.130  0.2275  390.390  0.0142
+2003  nan  0.2683  nan  0.0408
+2004  8078.377  0.3583  nan  0.0900
+2005  8267.113  0.4557  188.736  0.0974
+2006  8108.377  0.2829  -158.736  -0.1729
+2007  7954.870  0.3400  -153.506  0.0571
+2008  7851.623  0.1717  -103.247  -0.1683
+2009  8013.355  0.0950  161.732  -0.0767
+2010  8050.909  0.0433  37.554  -0.0517
+2011  8414.026  -0.1843  363.117  -0.2276
+2012  8144.605  -0.1829  -269.421  0.0014
+2013  8458.247  -0.2383  313.641  -0.0555
+2014  8762.922  -0.4300  304.675  -0.1917
+2015  9151.169  -0.6300  388.247  -0.2000
+2016  9319.091  -0.5608  167.922  0.0692
+2017  9373.831  -0.6000  54.740  -0.0392
+2018  9446.299  -0.6500  72.468  -0.0500
+2019  9866.104  -0.8660  419.805  -0.2160
+2020  9909.740  -0.7917  43.636  0.0743
+2021  10320.974  -1.0700  411.234  -0.2783
+2022  10978.636  -1.3450  657.662  -0.2750
+2023  11750.065  -1.5929  771.429  -0.2479
+2024  12341.042  -1.7443  590.977  -0.1514
+2025  12850.775  -1.8867  509.733  -0.1424
+
+== PRIMARY kura_delta  measurable=True
+site_id=kura_delta
+verdict=not_confirmed
+reason=r_diff 0.4123 < 0.5
+n_years=25  n_pairs=23
+rmse_model=0.206942  rmse_baseline=0.257257
+r_diff=0.412308  r_diff_ci_low=0.067447  ci_high=0.676439
+degenerate_share=0.000000  raw_r=0.962879  slope_b=-0.00406945
+
+year  D_m  L_m  dD_m  dL_m  (differences only between adjacent years)
+2000  5646.857  0.2700  nan  nan
+2001  5669.143  0.2133  22.286  -0.0567
+2002  5659.286  0.2275  -9.857  0.0142
+2003  nan  0.2683  nan  0.0408
+2004  5626.714  0.3583  nan  0.0900
+2005  5628.500  0.4557  1.786  0.0974
+2006  5621.571  0.2829  -6.929  -0.1729
+2007  5670.000  0.3400  48.429  0.0571
+2008  5692.714  0.1717  22.714  -0.1683
+2009  5694.857  0.0950  2.143  -0.0767
+2010  5760.000  0.0433  65.143  -0.0517
+2011  5809.714  -0.1843  49.714  -0.2276
+2012  5811.857  -0.1829  2.143  0.0014
+2013  5820.857  -0.2383  9.000  -0.0555
+2014  5868.000  -0.4300  47.143  -0.1917
+2015  5946.000  -0.6300  78.000  -0.2000
+2016  5900.571  -0.5608  -45.429  0.0692
+2017  5880.429  -0.6000  -20.143  -0.0392
+2018  5898.857  -0.6500  18.429  -0.0500
+2019  6017.143  -0.8660  118.286  -0.2160
+2020  6024.429  -0.7917  7.286  0.0743
+2021  6039.000  -1.0700  14.571  -0.2783
+2022  6053.571  -1.3450  14.571  -0.2750
+2023  6075.429  -1.5929  21.857  -0.2479
+2024  6068.571  -1.7443  -6.857  -0.1514
+2025  6089.143  -1.8867  20.571  -0.1424
+
+== PRIMARY lankaran_astara  measurable=True
+site_id=lankaran_astara
+verdict=not_confirmed
+reason=rmse_model 0.7263 not below rmse_baseline 0.2573; r_diff -0.3748 < 0.5; ci_low -0.6559 <= 0
+n_years=25  n_pairs=23
+rmse_model=0.726296  rmse_baseline=0.257257
+r_diff=-0.374757  r_diff_ci_low=-0.655900  ci_high=0.376617
+degenerate_share=0.000000  raw_r=0.598621  slope_b=-0.02094533
+
+year  D_m  L_m  dD_m  dL_m  (differences only between adjacent years)
+2000  3025.135  0.2700  nan  nan
+2001  3027.973  0.2133  2.838  -0.0567
+2002  3027.162  0.2275  -0.811  0.0142
+2003  nan  0.2683  nan  0.0408
+2004  3013.581  0.3583  nan  0.0900
+2005  3018.649  0.4557  5.068  0.0974
+2006  3012.770  0.2829  -5.878  -0.1729
+2007  3011.757  0.3400  -1.014  0.0571
+2008  3007.397  0.1717  -4.359  -0.1683
+2009  3008.716  0.0950  1.319  -0.0767
+2010  3010.743  0.0433  2.027  -0.0517
+2011  3013.784  -0.1843  3.041  -0.2276
+2012  3012.973  -0.1829  -0.811  0.0014
+2013  3002.230  -0.2383  -10.743  -0.0555
+2014  3014.797  -0.4300  12.568  -0.1917
+2015  3016.419  -0.6300  1.622  -0.2000
+2016  3021.081  -0.5608  4.662  0.0692
+2017  3018.649  -0.6000  -2.432  -0.0392
+2018  3019.459  -0.6500  0.811  -0.0500
+2019  3021.486  -0.8660  2.027  -0.2160
+2020  3094.662  -0.7917  73.176  0.0743
+2021  3026.757  -1.0700  -67.905  -0.2783
+2022  3038.919  -1.3450  12.162  -0.2750
+2023  3038.919  -1.5929  0.000  -0.2479
+2024  3047.432  -1.7443  8.514  -0.1514
+2025  3063.851  -1.8867  16.419  -0.1424
+
+== OVERALL VERDICT: partial
+
+== SECONDARY (reported next to the verdict, never altering it)
+
+-- gizilaghaj
+raw Pearson r(D, -L) = 0.966993  (NOTE: both series trend; this is not evidence of coupling)
+weighted displacement: confirmed  rmse_model=0.2174 rmse_baseline=0.2573 r_diff=0.5030 ci_low=0.1911 n_years=25
+always-present profiles (63): confirmed  rmse_model=0.1907 rmse_baseline=0.2573 r_diff=0.5732 ci_low=0.2990 n_years=25
+fixed MNDWI threshold 0.0: not_confirmed  rmse_model=0.1390 rmse_baseline=0.2573 r_diff=0.4889 ci_low=0.1478 n_years=25
+fixed MNDWI threshold 0.1: confirmed  rmse_model=0.1500 rmse_baseline=0.2573 r_diff=0.6120 ci_low=0.3371 n_years=25
+fixed MNDWI threshold 0.2: confirmed  rmse_model=0.1929 rmse_baseline=0.2573 r_diff=0.5867 ci_low=0.3563 n_years=25
+block bootstrap (length 3) r_diff CI: [0.121817, 0.800417] degenerate_share=0.000000
+gizilaghaj excluding years after 2023: confirmed  rmse_model=0.1793 rmse_baseline=0.2238 r_diff=0.5606 ci_low=0.2009 n_years=23
+retreat per 1 cm of level fall = 21.5451 m
+
+-- kura_delta
+raw Pearson r(D, -L) = 0.962879  (NOTE: both series trend; this is not evidence of coupling)
+weighted displacement: not_confirmed  rmse_model=0.2069 rmse_baseline=0.2573 r_diff=0.4123 ci_low=0.0674 n_years=25
+always-present profiles (30): not_confirmed  rmse_model=0.2267 rmse_baseline=0.2573 r_diff=0.4975 ci_low=0.1316 n_years=25
+fixed MNDWI threshold 0.0: confirmed  rmse_model=0.2043 rmse_baseline=0.2573 r_diff=0.5263 ci_low=0.2737 n_years=25
+fixed MNDWI threshold 0.1: confirmed  rmse_model=0.2071 rmse_baseline=0.2573 r_diff=0.5079 ci_low=0.2173 n_years=25
+fixed MNDWI threshold 0.2: not_confirmed  rmse_model=0.2981 rmse_baseline=0.2573 r_diff=0.0219 ci_low=-0.2522 n_years=25
+block bootstrap (length 3) r_diff CI: [0.028277, 0.732434] degenerate_share=0.000000
+
+-- lankaran_astara
+raw Pearson r(D, -L) = 0.598621  (NOTE: both series trend; this is not evidence of coupling)
+weighted displacement: not_confirmed  rmse_model=0.7263 rmse_baseline=0.2573 r_diff=-0.3748 ci_low=-0.6559 n_years=25
+always-present profiles (73): not_confirmed  rmse_model=0.7401 rmse_baseline=0.2573 r_diff=-0.3759 ci_low=-0.6569 n_years=25
+fixed MNDWI threshold 0.0: not_confirmed  rmse_model=0.3995 rmse_baseline=0.2573 r_diff=0.3143 ci_low=0.0204 n_years=25
+fixed MNDWI threshold 0.1: not_confirmed  rmse_model=1.0527 rmse_baseline=0.2573 r_diff=-0.0133 ci_low=-0.3568 n_years=25
+fixed MNDWI threshold 0.2: not_confirmed  rmse_model=0.6523 rmse_baseline=0.2500 r_diff=-0.1639 ci_low=-0.5511 n_years=24
+block bootstrap (length 3) r_diff CI: [-0.656019, 0.312914] degenerate_share=0.000000
+
