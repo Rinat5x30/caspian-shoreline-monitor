@@ -1,18 +1,18 @@
-# Wheat Drought Early Warning for Azerbaijan
+# Wheat Drought-Risk Map for Azerbaijan
 
 Global Sustainability Challenge 2026-27, Ignite stage. Theme: Adaptation & Resilience. Focus: Food resilience.
 
-Team: two students (the owner and an AI coding assistant). No external organisations were involved in this work, and none are claimed. Validation is planned and in progress; this document reports no accuracy figure.
+Team: I am a student, building this with an AI coding assistant. No external organisations were involved in this work, and none are claimed. The yield data are loaded, but the back-test has not been run yet; this document reports no accuracy figure.
 
 ## 1. Problem
 
-Wheat is a key staple, and Azerbaijan depends on imports for much of it. On 26 May 2026 the President said the country is "only 55% self-sufficient in wheat production"; the same report gives domestic output of 1.573 million tons against imports of 1.267 million tons (Trend, reproduced by UkrAgroConsult: https://ukragroconsult.com/?p=316982). FAO forecasts total cereal import requirements, mainly wheat, at 1.4 million tonnes for 2025/26 (FAO GIEWS country brief, reference date 30 April 2026: https://www.fao.org/giews/countrybrief/country.jsp?code=AZE).
+Wheat is a key staple, and Azerbaijan depends on imports for much of it. On 26 May 2026 the President said the country is only 55% self-sufficient in wheat, as reported by Trend. The same Trend report, reproduced by UkrAgroConsult, gives domestic wheat output of 1.573 million tons and wheat imports of 1.267 million tons (https://ukragroconsult.com/?p=316982). FAO forecasts total cereal import requirements, mainly wheat, at 1.4 million tonnes for 2025/26 (FAO GIEWS country brief, reference date 30 April 2026: https://www.fao.org/giews/countrybrief/country.jsp?code=AZE).
 
-When a dry season cuts the domestic harvest, the gap is filled by imports. Decision makers and farmers lack an open, district-level view of where drought is building during the season. We could not find a published district-level drought-risk product for Azerbaijani wheat; this describes our search, not a claim that none exists.
+When a dry season cuts the domestic harvest, the gap may be covered by imports. We are not aware of an open district-level view of drought risk for wheat in Azerbaijan. We could not find a published district-level drought-risk product for Azerbaijani wheat; this describes our search, not a claim that none exists.
 
 ## 2. Solution
 
-An open district-level drought-risk map for winter wheat in Azerbaijan. It combines satellite vegetation greenness with rainfall and temperature and shows, per district, how far the current season departs from its normal. The index is compared with official yields from past years, so a user can see how well the signal tracked real harvests.
+An open district-level drought-risk map for winter wheat in Azerbaijan. It combines satellite vegetation greenness with rainfall and temperature into a seasonal drought index and shows, per district, how far a season departs from its normal. The index is compared with official yields from past years, so a user can see how well the signal tracked real harvests.
 
 ## 3. Method
 
@@ -39,7 +39,7 @@ The back-test is not finished, so no results are stated here. The plan:
 
 - Leave-one-year-out: for each of the six years, fit the model on the other five and predict the held-out year, for every district.
 - Metrics: Pearson correlation between predicted and observed yield anomaly, RMSE in percentage points, and the share of below-normal years correctly flagged.
-- Reporting rule: we publish whatever the test shows. A weak or null signal will be reported as such, together with the districts where it fails.
+- Reporting rule: we publish whatever the test shows. A weak or null signal will be reported as such, together with the districts and cities where it fails.
 - Sensitivity check: repeat the test with the recently liberated districts removed, to see how much they affect the result.
 
 ## 6. What the prototype will show
@@ -48,6 +48,7 @@ A static web map (no server) with a district-coloured drought-risk layer for eac
 
 ## 7. Limitations
 
+- Lead time: the time between a risk signal and harvest is not defined or tested; the index describes a season, not a forecast.
 - Six years of yield data: too few for a robust statistical relationship; estimates will be uncertain.
 - One composite predictor: it cannot separate the effects of heat, water shortage and vegetation stress.
 - Liberated districts: several recently liberated districts (for example Jabrayil, Lachin, Zangilan, Kalbajar, Gubadli, Khojaly) show low official yields that may reflect land being brought back into use rather than weather. We have not established the causes and will test the sensitivity of the result.
