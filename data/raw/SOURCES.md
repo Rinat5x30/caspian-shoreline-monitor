@@ -40,12 +40,23 @@
 
 geoBoundaries gbOpen, AZE ADM2 (79 единиц, год представления 2020, сборка 2023-12-12). API: https://www.geoboundaries.org/api/current/gbOpen/AZE/ADM2/. Исходник границ geoBoundaries: Wikipedia (administrative divisions of Azerbaijan), лицензия CC BY-SA 3.0; при публикации карты нужна атрибуция. Скачивается кодом в `data/raw/cache/` (в git не коммитится).
 
-Сопоставление: `region_aliases.csv` (`region_id,geometry_name`), составлено сверкой названий по реальному списку `shapeName`. Совпали все 66 id из `yields.csv`, ненайденных нет, исключений нет.
+Сопоставление: `region_aliases.csv` (`region_id,geometry_name`), составлено сверкой названий по реальному списку `shapeName`. Из 66 id в `yields.csv` 65 сопоставлены с геометрией; 1 id (`lankaran`) исключён явно (`EXCLUDED_IDS` в `src/wheatwatch/regions.py`), без догадок о геометрии.
 
-Решения по неоднозначным названиям:
-- В ADM2 есть пары «City» и «District» для Shaki, Shusha, Yevlakh, Lankaran. В статистике для них один id без суффикса `-city` (города публикуются отдельными id только для Nakhchivan и Naftalan), поэтому `shaki`, `shusha`, `yevlakh`, `lankaran` сопоставлены с District (площади 2306/296/1278 км2 против 12-28 км2 у городов). Города Shaki, Shusha, Yevlakh, Lankaran City остаются без статистики и в карту не попадают.
-- Geometry «Lankaran District» встречается в ADM2 дважды (542 и 608 км2, два несмежных полигона, оба соприкасаются с Masally). Принято: `load_regions` объединяет (dissolve) все полигоны с одним `geometry_name` в один регион. Что это именно две части одного района, подтверждено только совпадением названия, не независимым источником.
-- Shusha: непонятно, относится ли значение статистики к району или к городу; выбран район (в нём есть пашня), допущение не проверено.
+Решения по неоднозначным названиям. Проверка по ежегоднику 2024 (табл. 2.187, стр. 511-512 печатной нумерации), дословные подписи строк:
+- `Şəki rayonu ... Shaki district`, `Şuşa rayonu ... Shusha district`, `Yevlax rayonu ... Yevlakh district`, `Lənkəran rayonu ... Lankaran district`. Отдельных строк «Shaki city», «Shusha city», «Yevlakh city», «Lankaran city» в таблице нет (города в таблице: только `Nakhchivan city`, `Ganja city`, `Naftalan city`, `Mingachevir city`). Значит `shaki`, `shusha`, `yevlakh` — это районы и сопоставлены с ADM2 «... District» (площади 2306/296/1278 км2 против 12-28 км2 у городов). Города Shaki, Shusha, Yevlakh, Lankaran City, а также Baku, Sumqayit, Shirvan, Khankendi остаются без статистики.
+- **Исключён `lankaran`.** Строка таблицы — именно район. В ADM2 название «Lankaran District» встречается дважды (542 и 608 км2, несмежные полигоны, оба соприкасаются с Masally), сумма 1150 км2. Независимый источник (https://en.wikipedia.org/wiki/Lankaran_District, проверено 2026-11-18): площадь района 1,540 км2, город Lankaran технически не входит в район. Ни один полигон, ни их объединение не соответствуют 1540 км2, так что принадлежность полигонов району не подтверждена; id исключён из валидационного набора. Причина дублируется в `EXCLUDED_IDS`.
+- Все прочие 65 id сопоставлены один к одному по названию; `load_regions` падает при дублях в алиасах, при двух id на одно имя геометрии и при расхождении набора загруженных id с запрошенным.
+
+## Исключённые из геометрии id
+
+| region_id | причина |
+|---|---|
+| lankaran | двойной полигон «Lankaran District» в ADM2 (1150 км2 против 1540 км2), принадлежность не подтверждена |
+
+## Атрибуция (для приложения и документации)
+
+- Границы районов: geoBoundaries (Runfola et al. 2020, https://www.geoboundaries.org), gbOpen AZE ADM2, лицензия CC BY-SA 3.0 (источник Wikipedia). ShareAlike: производные данные границ (например, упрощённый GeoJSON или карта с ними) нужно распространять на тех же условиях CC BY-SA.
+- Маска пашни: ESA WorldCover 2021 v200, лицензия CC BY 4.0. Подпись: «Contains modified ESA WorldCover 2021 data © ESA WorldCover project / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium».
 
 ## Маска пашни
 
