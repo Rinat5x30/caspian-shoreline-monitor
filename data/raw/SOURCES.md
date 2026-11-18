@@ -62,3 +62,11 @@ geoBoundaries gbOpen, AZE ADM2 (79 единиц, год представлени
 
 ESA WorldCover 2021 v200 (10 м), Microsoft Planetary Computer STAC, коллекция `esa-worldcover`, актив `map`, анонимный доступ через `planetary_computer.sign_inplace`. Класс 40 = Cropland. Кеш: `data/raw/cache/worldcover2021_cropland_az_100m.tif` (в git не коммитится).
 Растр пересэмплирован до сетки 1/1200 градуса (около 71 x 93 м на широте Азербайджана; файл 4 МБ, смоук-запуск 134 с) методом mode (мода класса в ячейке) и хранится как uint8-растр классов (0 = нет данных), bbox 44.7-50.7 E, 38.3-42.0 N (чуть шире страны). Полигоны районов маской не обрезаются.
+
+# Климат сезона (Task 4)
+
+Open-Meteo Historical Weather API (https://archive-api.open-meteo.com/v1/archive), без ключа и аккаунта. Суточные `precipitation_sum` и `temperature_2m_max`, реанализ ERA5 (сетка около 25 км, внутри API интерполируется к точке), часовой пояс GMT. Одна репрезентативная точка на район (`geometry.representative_point()`, всегда внутри полигона). Окно сезона: 1 марта - 30 июня включительно (`SEASON_START`/`SEASON_END` в `src/wheatwatch/climate.py`); `precip_mm` = сумма за окно, `tmax_mean_c` = среднее за окно. Пропуск (null) хотя бы одного дня окна даёт NaN за район-год, а не ноль; число пропусков пишется в лог. Кеш: `data/raw/cache/climate_{region_id}_{year}.json` (в git не коммитится).
+
+Ограничения: значения ERA5 сглажены по ячейке около 25 км, а точка одна на район, поэтому локальные ливни и горный рельеф в больших районах отражены грубо. Это реанализ, не измерения станций.
+
+Атрибуция: погодные данные Open-Meteo.com (https://open-meteo.com), лицензия CC BY 4.0; содержат модифицированные данные Copernicus Climate Change Service (ERA5, Hersbach et al. 2023). Подпись: "Weather data by Open-Meteo.com (CC BY 4.0), based on ERA5 from Copernicus Climate Change Service / ECMWF". Некоммерческое использование бесплатно; ссылка на источник обязательна.
