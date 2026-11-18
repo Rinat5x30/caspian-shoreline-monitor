@@ -95,6 +95,7 @@ def site_displacement_detail(
     site: Site,
     masks: Mapping[int, WaterMask | None],
     min_valid_profile_share: float = 0.8,
+    fixed_profiles: Sequence[int] | None = None,
 ) -> SiteDisplacement:
     profiles = make_profiles(site)
     years = sorted(masks)
@@ -113,6 +114,11 @@ def site_displacement_detail(
         share = positions.loc[usable].notna().mean()
         complete = tuple(int(str(i)) for i in share.index[share >= COMPLETE_SET_MIN_YEAR_SHARE])
     by_index = {p.index: p for p in profiles}
+    if fixed_profiles is not None:
+        unknown = sorted(set(fixed_profiles) - set(by_index))
+        if unknown:
+            raise ValueError(f"fixed_profiles not in the site profiles: {unknown}")
+        complete = tuple(sorted(set(int(i) for i in fixed_profiles)))
     values: dict[int, float] = {}
     weighted: dict[int, float] = {}
     shares: dict[int, float] = {}
@@ -148,8 +154,9 @@ def site_displacement_series(
     site: Site,
     masks: Mapping[int, WaterMask | None],
     min_valid_profile_share: float = 0.8,
+    fixed_profiles: Sequence[int] | None = None,
 ) -> pd.Series:
-    return site_displacement_detail(site, masks, min_valid_profile_share).series
+    return site_displacement_detail(site, masks, min_valid_profile_share, fixed_profiles).series
 
 
 def is_measurable(series: pd.Series, period: Sequence[int], min_years: int = 20) -> bool:

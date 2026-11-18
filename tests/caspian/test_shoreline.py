@@ -302,6 +302,39 @@ def test_shoreline_module_does_not_import_level() -> None:
     assert not any("level" in name.split(".") for name in names), names
 
 
+def test_fixed_profiles_default_is_unchanged() -> None:
+    masks: dict[int, WaterMask | None] = {}
+    for year in range(2000, 2010):
+        late: dict[int, int | None] = {ROWS[4]: None if year >= 2007 else 15}
+        masks[year] = _mask(_cols(5, late))
+    default = site_displacement_detail(_site(), masks)
+    explicit = site_displacement_detail(_site(), masks, fixed_profiles=None)
+    assert default.complete_profiles == explicit.complete_profiles == (0, 1, 2, 3)
+    pd.testing.assert_series_equal(default.series, explicit.series)
+    pd.testing.assert_series_equal(
+        site_displacement_series(_site(), masks), site_displacement_series(_site(), masks, 0.8)
+    )
+
+
+def test_fixed_profiles_overrides_the_complete_set() -> None:
+    masks: dict[int, WaterMask | None] = {
+        year: _mask(_cols(5, {ROWS[1]: 10})) for year in range(2000, 2010)
+    }
+    free = site_displacement_detail(_site(), masks)
+    fixed = site_displacement_detail(_site(), masks, fixed_profiles=(0, 1))
+    assert fixed.complete_profiles == (0, 1)
+    assert fixed.series.tolist() == pytest.approx([225.0] * 10)
+    assert free.series.tolist() != pytest.approx([225.0] * 10)
+    only = site_displacement_series(_site(), masks, fixed_profiles=[1])
+    assert only.tolist() == pytest.approx([300.0] * 10)
+
+
+def test_fixed_profiles_unknown_index_raises() -> None:
+    masks: dict[int, WaterMask | None] = {2000: _mask(_cols(5))}
+    with pytest.raises(ValueError):
+        site_displacement_detail(_site(), masks, fixed_profiles=(0, 99))
+
+
 def test_importing_shoreline_loads_no_level_module() -> None:
     code = "import sys, caspianwatch.shoreline; sys.exit('caspianwatch.level' in sys.modules)"
     env = {**os.environ, "PYTHONPATH": str(SRC.parent)}
