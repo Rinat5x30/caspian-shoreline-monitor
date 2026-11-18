@@ -26,6 +26,12 @@ def _http_get(url: str) -> bytes:
     return response.content
 
 
+def retry[T](fn: Callable[[], T], sleep: Callable[[float], None] = time.sleep) -> T:
+    from wheatwatch.ndvi import _retry
+
+    return _retry(fn, sleep)
+
+
 def get_with_retry(
     url: str,
     *,

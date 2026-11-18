@@ -1,0 +1,616 @@
+{
+  "crs": "EPSG:32639",
+  "run_date": "2026-11-18",
+  "rule_doc": "docs/caspian/site-selection.md",
+  "sources": {
+    "coast": "ESA WorldCover 2021 class 80, 4-connected Caspian component",
+    "dem": "Copernicus DEM GLO-90 (cop-dem-glo-90, Planetary Computer)"
+  },
+  "sites": [
+    {
+      "site_id": "gizilaghaj",
+      "name": "Gizil-Aghaj (Kyzylagach) Bay, north-east",
+      "reference_line": [
+        [
+          338903.2247897237,
+          4330980.035185078
+        ],
+        [
+          338243.54060203733,
+          4331035.470034375
+        ],
+        [
+          337976.6926330369,
+          4331103.117571048
+        ],
+        [
+          337580.82233740384,
+          4331325.776241456
+        ],
+        [
+          336593.88748508313,
+          4331410.571145707
+        ],
+        [
+          336459.17041278176,
+          4331561.972548642
+        ],
+        [
+          336241.6020989161,
+          4332134.446139539
+        ],
+        [
+          336146.118894446,
+          4332784.3058693325
+        ],
+        [
+          336285.74092448567,
+          4334530.370129167
+        ],
+        [
+          336258.1735060439,
+          4334986.485097006
+        ],
+        [
+          336197.1681979059,
+          4335184.610206446
+        ],
+        [
+          336064.75461823464,
+          4335337.471725209
+        ],
+        [
+          335858.6292744,
+          4335443.609537467
+        ],
+        [
+          334946.5951791174,
+          4335812.676385027
+        ],
+        [
+          334704.8029460759,
+          4336133.000580837
+        ],
+        [
+          334564.364388759,
+          4336517.56987309
+        ],
+        [
+          334549.4289332231,
+          4336744.897299095
+        ],
+        [
+          334945.8531449597,
+          4338416.9462948935
+        ],
+        [
+          334910.18625575287,
+          4338631.1326784445
+        ],
+        [
+          334723.6778458339,
+          4338986.499654133
+        ],
+        [
+          334264.24280580715,
+          4339405.661083058
+        ],
+        [
+          333469.68683466,
+          4339849.1938378615
+        ],
+        [
+          333140.3618816745,
+          4340114.033632196
+        ],
+        [
+          332675.2053566323,
+          4340766.3629504405
+        ],
+        [
+          331823.0620697325,
+          4341173.392809536
+        ],
+        [
+          331568.56338066567,
+          4341248.868189401
+        ],
+        [
+          330963.14449520607,
+          4341575.49477771
+        ],
+        [
+          330401.6466808779,
+          4341693.167064187
+        ]
+      ],
+      "seaward": [
+        -0.8446139643718372,
+        -0.535375803700624
+      ],
+      "deltaic": true,
+      "profile_length_m": 5600.0
+    },
+    {
+      "site_id": "kura_delta",
+      "name": "Kura river mouth",
+      "reference_line": [
+        [
+          362974.834539717,
+          4346391.847247769
+        ],
+        [
+          363056.8210266269,
+          4348250.849833205
+        ],
+        [
+          363020.5342567378,
+          4348652.213991653
+        ],
+        [
+          362846.13168001844,
+          4349228.402900423
+        ],
+        [
+          361971.00484566204,
+          4350881.121461952
+        ],
+        [
+          361524.0746926881,
+          4352216.943139447
+        ],
+        [
+          361259.0262860995,
+          4352773.595399712
+        ],
+        [
+          361112.9123178102,
+          4352946.696328107
+        ],
+        [
+          360025.0912645259,
+          4353735.203590686
+        ],
+        [
+          359799.5146734393,
+          4354095.770630199
+        ],
+        [
+          359539.79837449006,
+          4354653.572105083
+        ],
+        [
+          359510.9907742668,
+          4354851.955755071
+        ],
+        [
+          359689.02629353874,
+          4355708.697159006
+        ],
+        [
+          359774.85900756187,
+          4355931.788923278
+        ],
+        [
+          359829.14697268844,
+          4357375.636774853
+        ],
+        [
+          359975.7088379175,
+          4358430.187221467
+        ],
+        [
+          359741.0250069318,
+          4359402.568822904
+        ],
+        [
+          359688.74191412464,
+          4359800.485337498
+        ],
+        [
+          359362.51239664515,
+          4360548.543873286
+        ],
+        [
+          359338.529084286,
+          4360747.96728888
+        ]
+      ],
+      "seaward": [
+        0.9775530672171613,
+        0.2106893466085082
+      ],
+      "deltaic": true,
+      "profile_length_m": 4500.0
+    },
+    {
+      "site_id": "lankaran_astara",
+      "name": "Southern coast Lankaran - Astara",
+      "reference_line": [
+        [
+          310550.5381991063,
+          4266970.07622331
+        ],
+        [
+          310592.15165700536,
+          4269769.7742098775
+        ],
+        [
+          310840.1046306879,
+          4269966.668233978
+        ],
+        [
+          311444.4653132046,
+          4270959.13834726
+        ],
+        [
+          312493.54539636325,
+          4271745.993414268
+        ],
+        [
+          312858.7618034944,
+          4271941.411044849
+        ],
+        [
+          312986.7242871365,
+          4272139.8157972
+        ],
+        [
+          314253.7597214676,
+          4273123.94257037
+        ],
+        [
+          314678.34384509746,
+          4273918.6602912275
+        ],
+        [
+          314694.0786561268,
+          4274518.509737232
+        ],
+        [
+          314442.1435688092,
+          4275521.760956666
+        ],
+        [
+          313104.421605596,
+          4276938.7143694265
+        ],
+        [
+          312653.8297394226,
+          4277544.435054769
+        ],
+        [
+          312566.35475231026,
+          4277745.552251023
+        ],
+        [
+          312664.11043726833,
+          4278144.3531702375
+        ],
+        [
+          312900.7368322358,
+          4278741.4215028705
+        ],
+        [
+          313880.3854435556,
+          4280729.2458470045
+        ],
+        [
+          314221.58516496076,
+          4281725.029262018
+        ]
+      ],
+      "seaward": [
+        0.999920750337256,
+        -0.01258940208980526
+      ],
+      "deltaic": false,
+      "profile_length_m": 6500.0
+    }
+  ],
+  "candidates": [
+    {
+      "candidate_id": "gizilaghaj",
+      "name": "Gizil-Aghaj (Kyzylagach) Bay, north-east",
+      "point_lat_lon": [
+        39.15,
+        49.05
+      ],
+      "snapped_lat_lon": [
+        39.14875,
+        49.05875
+      ],
+      "snap_m": 769.0,
+      "in_kura_delta": false,
+      "reason": "EGU24-14488 (Ahadov, Kadirov, Fielding): about 218 km2 of exposed land in the Gizil-Aghaj reserve 2014-2023, largest change in the north-east",
+      "mean_slope_deg": 0.0674871377868168,
+      "built_share": 0.0,
+      "tree_share": 0.0,
+      "wetland_share": 0.8114633400939072,
+      "n_pixels": 35993,
+      "class_shares": {
+        "20": 0.0003,
+        "30": 0.0947,
+        "40": 0.0638,
+        "60": 0.0108,
+        "80": 0.0189,
+        "90": 0.8115
+      },
+      "passed": true,
+      "deltaic": true,
+      "reasons": [],
+      "reference": {
+        "method": "fallback_offset",
+        "stations": 69,
+        "stations_with_coast": 69,
+        "contour_fraction": 0.0,
+        "reference_line_length_m": 16290.4,
+        "profiles": 82,
+        "profiles_reaching_sea": 82,
+        "max_distance_to_class80_m": 3570.0,
+        "profile_length_m": 5600.0
+      }
+    },
+    {
+      "candidate_id": "kura_delta",
+      "name": "Kura river mouth",
+      "point_lat_lon": [
+        39.32,
+        49.4
+      ],
+      "snapped_lat_lon": [
+        39.32375,
+        49.40375
+      ],
+      "snap_m": 527.1,
+      "in_kura_delta": true,
+      "reason": "Gasimov 2021 (Acta Geodyn. Geomater. 18(4), doi 10.13168/AGG.2021.0035): Kura delta zone, 1.39 m level drop 1996-2019 led to land accumulation",
+      "mean_slope_deg": 0.19384042782634847,
+      "built_share": 0.00016493031694109238,
+      "tree_share": 0.0,
+      "wetland_share": 0.40440913713955856,
+      "n_pixels": 36379,
+      "class_shares": {
+        "20": 0.0009,
+        "30": 0.333,
+        "40": 0.1463,
+        "50": 0.0002,
+        "60": 0.1014,
+        "80": 0.0139,
+        "90": 0.4044
+      },
+      "passed": true,
+      "deltaic": true,
+      "reasons": [],
+      "reference": {
+        "method": "fallback_offset",
+        "stations": 75,
+        "stations_with_coast": 75,
+        "contour_fraction": 0.0,
+        "reference_line_length_m": 15614.4,
+        "profiles": 79,
+        "profiles_reaching_sea": 79,
+        "max_distance_to_class80_m": 2460.0,
+        "profile_length_m": 4500.0
+      }
+    },
+    {
+      "candidate_id": "shirvan_coast",
+      "name": "South-East Shirvan coast (Bandovan - Pirsaat)",
+      "point_lat_lon": [
+        39.7,
+        49.4
+      ],
+      "snapped_lat_lon": [
+        39.69458,
+        49.40375
+      ],
+      "snap_m": 681.9,
+      "in_kura_delta": false,
+      "reason": "Gasimov 2021: Shirvan zone of the Kura sub-region (Pirsaat and Bandovan capes)",
+      "mean_slope_deg": 1.1028612377934797,
+      "built_share": 0.0019678583142013774,
+      "tree_share": 0.0,
+      "wetland_share": 0.0014212310047009948,
+      "n_pixels": 18294,
+      "class_shares": {
+        "20": 0.0044,
+        "30": 0.8039,
+        "50": 0.002,
+        "60": 0.1883,
+        "90": 0.0014
+      },
+      "passed": false,
+      "deltaic": false,
+      "reasons": [
+        "mean slope 1.103 deg > 1.0"
+      ]
+    },
+    {
+      "candidate_id": "absheron_ne",
+      "name": "North-eastern Absheron (east of Bilgah)",
+      "point_lat_lon": [
+        40.53,
+        50.1
+      ],
+      "snapped_lat_lon": [
+        40.53625,
+        50.10458
+      ],
+      "snap_m": 795.0,
+      "in_kura_delta": false,
+      "reason": "spec reconnaissance and Euronews 2026: retreat visible on low-lying Absheron",
+      "mean_slope_deg": 2.0048270797326633,
+      "built_share": 0.523702950152594,
+      "tree_share": 0.06734486266531027,
+      "wetland_share": 0.026602238046795523,
+      "n_pixels": 19660,
+      "class_shares": {
+        "10": 0.0673,
+        "20": 0.0047,
+        "30": 0.2383,
+        "40": 0.004,
+        "50": 0.5237,
+        "60": 0.1273,
+        "80": 0.0081,
+        "90": 0.0266
+      },
+      "passed": false,
+      "deltaic": false,
+      "reasons": [
+        "mean slope 2.005 deg > 1.0",
+        "built-up 52.4% > 30%"
+      ]
+    },
+    {
+      "candidate_id": "absheron_south",
+      "name": "Southern Absheron (Hovsan - Turkan - Zira)",
+      "point_lat_lon": [
+        40.37,
+        50.1
+      ],
+      "snapped_lat_lon": [
+        40.36542,
+        50.10375
+      ],
+      "snap_m": 600.2,
+      "in_kura_delta": false,
+      "reason": "brief (southern Absheron); Euronews 2026 low-lying Absheron; map reading",
+      "mean_slope_deg": 0.6758492396873388,
+      "built_share": 0.47398630858346497,
+      "tree_share": 0.000631911532385466,
+      "wetland_share": 0.03322801474460242,
+      "n_pixels": 18990,
+      "class_shares": {
+        "10": 0.0006,
+        "30": 0.334,
+        "40": 0.0009,
+        "50": 0.474,
+        "60": 0.1551,
+        "80": 0.0021,
+        "90": 0.0332
+      },
+      "passed": false,
+      "deltaic": false,
+      "reasons": [
+        "built-up 47.4% > 30%"
+      ]
+    },
+    {
+      "candidate_id": "sumgayit",
+      "name": "Sumgayit - Jorat",
+      "point_lat_lon": [
+        40.6,
+        49.62
+      ],
+      "snapped_lat_lon": [
+        40.61375,
+        49.62708
+      ],
+      "snap_m": 1640.0,
+      "in_kura_delta": false,
+      "reason": "brief (Sumgayit - Pirallahi area, north Absheron coast to the west); map reading",
+      "mean_slope_deg": 1.1755046716157742,
+      "built_share": 0.6411531340915102,
+      "tree_share": 0.027823327162126422,
+      "wetland_share": 0.01306532663316583,
+      "n_pixels": 18905,
+      "class_shares": {
+        "10": 0.0278,
+        "20": 0.0036,
+        "30": 0.1336,
+        "40": 0.0011,
+        "50": 0.6412,
+        "60": 0.1774,
+        "80": 0.0023,
+        "90": 0.0131
+      },
+      "passed": false,
+      "deltaic": false,
+      "reasons": [
+        "mean slope 1.176 deg > 1.0",
+        "built-up 64.1% > 30%"
+      ]
+    },
+    {
+      "candidate_id": "samur_khachmaz",
+      "name": "Northern coast near Samur - Khachmaz (Nabran)",
+      "point_lat_lon": [
+        41.7,
+        48.75
+      ],
+      "snapped_lat_lon": [
+        41.70208,
+        48.75375
+      ],
+      "snap_m": 388.6,
+      "in_kura_delta": false,
+      "reason": "brief; map reading: low Samur-Devechi lowland coast",
+      "mean_slope_deg": 1.6031524510127786,
+      "built_share": 0.11389193241450897,
+      "tree_share": 0.36629952136554983,
+      "wetland_share": 0.05091978547949945,
+      "n_pixels": 17341,
+      "class_shares": {
+        "10": 0.3663,
+        "20": 0.0053,
+        "30": 0.234,
+        "40": 0.1837,
+        "50": 0.1139,
+        "60": 0.0455,
+        "80": 0.0005,
+        "90": 0.0509
+      },
+      "passed": false,
+      "deltaic": false,
+      "reasons": [
+        "mean slope 1.603 deg > 1.0",
+        "tree cover 36.6% > 10%"
+      ]
+    },
+    {
+      "candidate_id": "lankaran_astara",
+      "name": "Southern coast Lankaran - Astara",
+      "point_lat_lon": [
+        38.6,
+        48.87
+      ],
+      "snapped_lat_lon": [
+        38.59875,
+        48.87208
+      ],
+      "snap_m": 228.5,
+      "in_kura_delta": false,
+      "reason": "brief; map reading: Lankaran lowland",
+      "mean_slope_deg": 0.4641545057961451,
+      "built_share": 0.10312371315959762,
+      "tree_share": 0.07941643626095653,
+      "wetland_share": 0.013294899699982352,
+      "n_pixels": 16999,
+      "class_shares": {
+        "10": 0.0794,
+        "20": 0.0004,
+        "30": 0.7405,
+        "40": 0.0595,
+        "50": 0.1031,
+        "60": 0.0035,
+        "80": 0.0004,
+        "90": 0.0133
+      },
+      "passed": true,
+      "deltaic": false,
+      "reasons": [],
+      "reference": {
+        "method": "contour",
+        "stations": 75,
+        "stations_with_coast": 75,
+        "contour_fraction": 1.0,
+        "reference_line_length_m": 17624.6,
+        "profiles": 89,
+        "profiles_reaching_sea": 89,
+        "max_distance_to_class80_m": 4410.0,
+        "profile_length_m": 6500.0
+      }
+    }
+  ]
+}
