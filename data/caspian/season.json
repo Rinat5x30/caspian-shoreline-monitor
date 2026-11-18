@@ -1,0 +1,1448 @@
+{
+  "run_date": "2026-11-18",
+  "rule": "lowest median over years of the per-year window mean eo:cloud_cover; ties to the earlier window; windows (7,8) (8,9) (9,10)",
+  "collection": "landsat-c2-l2",
+  "usable_scene_max_cloud": 50.0,
+  "bbox": {
+    "bbox": [
+      48.5,
+      38.3,
+      50.6,
+      41.9
+    ],
+    "justification": "Azerbaijan Caspian coastal strip: from the Samur river mouth (about 41.9 N, 48.6 E) to the Astara border (about 38.4 N, 48.9 E), east to the tip of the Absheron peninsula (about 50.4 E). Metadata search only: scenes whose footprint intersects the box are counted and eo:cloud_cover is a whole-scene value; the box includes some sea and inland area. Study sites are chosen later, in another task."
+  },
+  "years_requested": [
+    2000,
+    2001,
+    2002,
+    2003,
+    2004,
+    2005,
+    2006,
+    2007,
+    2008,
+    2009,
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "chosen": {
+    "start_month": 7,
+    "end_month": 8
+  },
+  "medians": {
+    "7-8": 22.487288135593218,
+    "8-9": 25.520901386748847,
+    "9-10": 36.63421052631579
+  },
+  "gate_min_years": 15,
+  "scene_count_per_year": {
+    "2000": 111,
+    "2001": 93,
+    "2002": 46,
+    "2003": 23,
+    "2004": 73,
+    "2005": 76,
+    "2006": 155,
+    "2007": 136,
+    "2008": 107,
+    "2009": 157,
+    "2010": 108,
+    "2011": 106,
+    "2012": 85,
+    "2013": 156,
+    "2014": 172,
+    "2015": 187,
+    "2016": 155,
+    "2017": 169,
+    "2018": 182,
+    "2019": 164,
+    "2020": 172,
+    "2021": 181,
+    "2022": 144,
+    "2023": 266,
+    "2024": 187,
+    "2025": 168
+  },
+  "cloud_table": [
+    {
+      "year": 2000,
+      "month": 7,
+      "scene_count": 21,
+      "cloud_pct": 10.5714285714
+    },
+    {
+      "year": 2000,
+      "month": 8,
+      "scene_count": 27,
+      "cloud_pct": 18.5185185185
+    },
+    {
+      "year": 2000,
+      "month": 9,
+      "scene_count": 31,
+      "cloud_pct": 42.5161290323
+    },
+    {
+      "year": 2000,
+      "month": 10,
+      "scene_count": 32,
+      "cloud_pct": 47.90625
+    },
+    {
+      "year": 2001,
+      "month": 7,
+      "scene_count": 20,
+      "cloud_pct": 30.45
+    },
+    {
+      "year": 2001,
+      "month": 8,
+      "scene_count": 26,
+      "cloud_pct": 13.2692307692
+    },
+    {
+      "year": 2001,
+      "month": 9,
+      "scene_count": 18,
+      "cloud_pct": 19.3333333333
+    },
+    {
+      "year": 2001,
+      "month": 10,
+      "scene_count": 29,
+      "cloud_pct": 23.7931034483
+    },
+    {
+      "year": 2002,
+      "month": 7,
+      "scene_count": 22,
+      "cloud_pct": 9.7272727273
+    },
+    {
+      "year": 2002,
+      "month": 8,
+      "scene_count": 9,
+      "cloud_pct": 6.5555555556
+    },
+    {
+      "year": 2002,
+      "month": 9,
+      "scene_count": 8,
+      "cloud_pct": 13.625
+    },
+    {
+      "year": 2002,
+      "month": 10,
+      "scene_count": 7,
+      "cloud_pct": 16.0
+    },
+    {
+      "year": 2003,
+      "month": 7,
+      "scene_count": 9,
+      "cloud_pct": 31.2222222222
+    },
+    {
+      "year": 2003,
+      "month": 8,
+      "scene_count": 4,
+      "cloud_pct": 8.25
+    },
+    {
+      "year": 2003,
+      "month": 9,
+      "scene_count": 6,
+      "cloud_pct": 12.8333333333
+    },
+    {
+      "year": 2003,
+      "month": 10,
+      "scene_count": 4,
+      "cloud_pct": 18.5
+    },
+    {
+      "year": 2004,
+      "month": 7,
+      "scene_count": 19,
+      "cloud_pct": 39.9473684211
+    },
+    {
+      "year": 2004,
+      "month": 8,
+      "scene_count": 24,
+      "cloud_pct": 15.375
+    },
+    {
+      "year": 2004,
+      "month": 9,
+      "scene_count": 20,
+      "cloud_pct": 21.35
+    },
+    {
+      "year": 2004,
+      "month": 10,
+      "scene_count": 10,
+      "cloud_pct": 44.6
+    },
+    {
+      "year": 2005,
+      "month": 7,
+      "scene_count": 23,
+      "cloud_pct": 25.5217391304
+    },
+    {
+      "year": 2005,
+      "month": 8,
+      "scene_count": 20,
+      "cloud_pct": 13.3
+    },
+    {
+      "year": 2005,
+      "month": 9,
+      "scene_count": 13,
+      "cloud_pct": 18.6153846154
+    },
+    {
+      "year": 2005,
+      "month": 10,
+      "scene_count": 20,
+      "cloud_pct": 31.15
+    },
+    {
+      "year": 2006,
+      "month": 7,
+      "scene_count": 35,
+      "cloud_pct": 26.9714285714
+    },
+    {
+      "year": 2006,
+      "month": 8,
+      "scene_count": 45,
+      "cloud_pct": 9.8222222222
+    },
+    {
+      "year": 2006,
+      "month": 9,
+      "scene_count": 43,
+      "cloud_pct": 18.6279069767
+    },
+    {
+      "year": 2006,
+      "month": 10,
+      "scene_count": 32,
+      "cloud_pct": 64.96875
+    },
+    {
+      "year": 2007,
+      "month": 7,
+      "scene_count": 34,
+      "cloud_pct": 35.7941176471
+    },
+    {
+      "year": 2007,
+      "month": 8,
+      "scene_count": 43,
+      "cloud_pct": 22.0
+    },
+    {
+      "year": 2007,
+      "month": 9,
+      "scene_count": 40,
+      "cloud_pct": 13.15
+    },
+    {
+      "year": 2007,
+      "month": 10,
+      "scene_count": 19,
+      "cloud_pct": 35.4736842105
+    },
+    {
+      "year": 2008,
+      "month": 7,
+      "scene_count": 41,
+      "cloud_pct": 24.0243902439
+    },
+    {
+      "year": 2008,
+      "month": 8,
+      "scene_count": 21,
+      "cloud_pct": 19.5238095238
+    },
+    {
+      "year": 2008,
+      "month": 9,
+      "scene_count": 21,
+      "cloud_pct": 37.0
+    },
+    {
+      "year": 2008,
+      "month": 10,
+      "scene_count": 24,
+      "cloud_pct": 45.6666666667
+    },
+    {
+      "year": 2009,
+      "month": 7,
+      "scene_count": 40,
+      "cloud_pct": 30.975
+    },
+    {
+      "year": 2009,
+      "month": 8,
+      "scene_count": 35,
+      "cloud_pct": 39.6857142857
+    },
+    {
+      "year": 2009,
+      "month": 9,
+      "scene_count": 39,
+      "cloud_pct": 34.8461538462
+    },
+    {
+      "year": 2009,
+      "month": 10,
+      "scene_count": 43,
+      "cloud_pct": 25.0930232558
+    },
+    {
+      "year": 2010,
+      "month": 7,
+      "scene_count": 41,
+      "cloud_pct": 7.7804878049
+    },
+    {
+      "year": 2010,
+      "month": 8,
+      "scene_count": 29,
+      "cloud_pct": 5.3448275862
+    },
+    {
+      "year": 2010,
+      "month": 9,
+      "scene_count": 21,
+      "cloud_pct": 17.6666666667
+    },
+    {
+      "year": 2010,
+      "month": 10,
+      "scene_count": 17,
+      "cloud_pct": 56.1176470588
+    },
+    {
+      "year": 2011,
+      "month": 7,
+      "scene_count": 31,
+      "cloud_pct": 16.6774193548
+    },
+    {
+      "year": 2011,
+      "month": 8,
+      "scene_count": 28,
+      "cloud_pct": 28.8928571429
+    },
+    {
+      "year": 2011,
+      "month": 9,
+      "scene_count": 27,
+      "cloud_pct": 24.8518518519
+    },
+    {
+      "year": 2011,
+      "month": 10,
+      "scene_count": 20,
+      "cloud_pct": 28.8
+    },
+    {
+      "year": 2012,
+      "month": 7,
+      "scene_count": 23,
+      "cloud_pct": 35.1739130435
+    },
+    {
+      "year": 2012,
+      "month": 8,
+      "scene_count": 22,
+      "cloud_pct": 25.5454545455
+    },
+    {
+      "year": 2012,
+      "month": 9,
+      "scene_count": 18,
+      "cloud_pct": 35.3888888889
+    },
+    {
+      "year": 2012,
+      "month": 10,
+      "scene_count": 22,
+      "cloud_pct": 23.6363636364
+    },
+    {
+      "year": 2013,
+      "month": 7,
+      "scene_count": 40,
+      "cloud_pct": 36.36825
+    },
+    {
+      "year": 2013,
+      "month": 8,
+      "scene_count": 46,
+      "cloud_pct": 32.3123913043
+    },
+    {
+      "year": 2013,
+      "month": 9,
+      "scene_count": 41,
+      "cloud_pct": 48.1970731707
+    },
+    {
+      "year": 2013,
+      "month": 10,
+      "scene_count": 29,
+      "cloud_pct": 37.6644827586
+    },
+    {
+      "year": 2014,
+      "month": 7,
+      "scene_count": 45,
+      "cloud_pct": 32.4791111111
+    },
+    {
+      "year": 2014,
+      "month": 8,
+      "scene_count": 44,
+      "cloud_pct": 10.3561363636
+    },
+    {
+      "year": 2014,
+      "month": 9,
+      "scene_count": 42,
+      "cloud_pct": 25.289047619
+    },
+    {
+      "year": 2014,
+      "month": 10,
+      "scene_count": 41,
+      "cloud_pct": 69.9231707317
+    },
+    {
+      "year": 2015,
+      "month": 7,
+      "scene_count": 46,
+      "cloud_pct": 31.7469565217
+    },
+    {
+      "year": 2015,
+      "month": 8,
+      "scene_count": 48,
+      "cloud_pct": 20.8622916667
+    },
+    {
+      "year": 2015,
+      "month": 9,
+      "scene_count": 45,
+      "cloud_pct": 17.3611111111
+    },
+    {
+      "year": 2015,
+      "month": 10,
+      "scene_count": 48,
+      "cloud_pct": 71.771875
+    },
+    {
+      "year": 2016,
+      "month": 7,
+      "scene_count": 39,
+      "cloud_pct": 42.2030769231
+    },
+    {
+      "year": 2016,
+      "month": 8,
+      "scene_count": 40,
+      "cloud_pct": 4.741
+    },
+    {
+      "year": 2016,
+      "month": 9,
+      "scene_count": 38,
+      "cloud_pct": 33.67
+    },
+    {
+      "year": 2016,
+      "month": 10,
+      "scene_count": 38,
+      "cloud_pct": 62.0313157895
+    },
+    {
+      "year": 2017,
+      "month": 7,
+      "scene_count": 45,
+      "cloud_pct": 27.8066666667
+    },
+    {
+      "year": 2017,
+      "month": 8,
+      "scene_count": 40,
+      "cloud_pct": 6.262
+    },
+    {
+      "year": 2017,
+      "month": 9,
+      "scene_count": 40,
+      "cloud_pct": 19.88625
+    },
+    {
+      "year": 2017,
+      "month": 10,
+      "scene_count": 44,
+      "cloud_pct": 41.4779545455
+    },
+    {
+      "year": 2018,
+      "month": 7,
+      "scene_count": 43,
+      "cloud_pct": 24.871627907
+    },
+    {
+      "year": 2018,
+      "month": 8,
+      "scene_count": 45,
+      "cloud_pct": 41.404
+    },
+    {
+      "year": 2018,
+      "month": 9,
+      "scene_count": 46,
+      "cloud_pct": 30.5391304348
+    },
+    {
+      "year": 2018,
+      "month": 10,
+      "scene_count": 48,
+      "cloud_pct": 38.3485416667
+    },
+    {
+      "year": 2019,
+      "month": 7,
+      "scene_count": 43,
+      "cloud_pct": 17.403255814
+    },
+    {
+      "year": 2019,
+      "month": 8,
+      "scene_count": 42,
+      "cloud_pct": 25.5378571429
+    },
+    {
+      "year": 2019,
+      "month": 9,
+      "scene_count": 36,
+      "cloud_pct": 44.2011111111
+    },
+    {
+      "year": 2019,
+      "month": 10,
+      "scene_count": 43,
+      "cloud_pct": 35.4688372093
+    },
+    {
+      "year": 2020,
+      "month": 7,
+      "scene_count": 43,
+      "cloud_pct": 38.266744186
+    },
+    {
+      "year": 2020,
+      "month": 8,
+      "scene_count": 42,
+      "cloud_pct": 43.7876190476
+    },
+    {
+      "year": 2020,
+      "month": 9,
+      "scene_count": 41,
+      "cloud_pct": 20.3168292683
+    },
+    {
+      "year": 2020,
+      "month": 10,
+      "scene_count": 46,
+      "cloud_pct": 24.2219565217
+    },
+    {
+      "year": 2021,
+      "month": 7,
+      "scene_count": 44,
+      "cloud_pct": 32.5704545455
+    },
+    {
+      "year": 2021,
+      "month": 8,
+      "scene_count": 45,
+      "cloud_pct": 25.8997777778
+    },
+    {
+      "year": 2021,
+      "month": 9,
+      "scene_count": 46,
+      "cloud_pct": 32.2556521739
+    },
+    {
+      "year": 2021,
+      "month": 10,
+      "scene_count": 46,
+      "cloud_pct": 45.7893478261
+    },
+    {
+      "year": 2022,
+      "month": 7,
+      "scene_count": 45,
+      "cloud_pct": 24.8473333333
+    },
+    {
+      "year": 2022,
+      "month": 8,
+      "scene_count": 35,
+      "cloud_pct": 15.8714285714
+    },
+    {
+      "year": 2022,
+      "month": 9,
+      "scene_count": 24,
+      "cloud_pct": 36.1804166667
+    },
+    {
+      "year": 2022,
+      "month": 10,
+      "scene_count": 40,
+      "cloud_pct": 52.23425
+    },
+    {
+      "year": 2023,
+      "month": 7,
+      "scene_count": 66,
+      "cloud_pct": 27.8954545455
+    },
+    {
+      "year": 2023,
+      "month": 8,
+      "scene_count": 63,
+      "cloud_pct": 11.6357142857
+    },
+    {
+      "year": 2023,
+      "month": 9,
+      "scene_count": 70,
+      "cloud_pct": 44.0395714286
+    },
+    {
+      "year": 2023,
+      "month": 10,
+      "scene_count": 67,
+      "cloud_pct": 46.9765671642
+    },
+    {
+      "year": 2024,
+      "month": 7,
+      "scene_count": 45,
+      "cloud_pct": 33.6813333333
+    },
+    {
+      "year": 2024,
+      "month": 8,
+      "scene_count": 47,
+      "cloud_pct": 27.859787234
+    },
+    {
+      "year": 2024,
+      "month": 9,
+      "scene_count": 48,
+      "cloud_pct": 35.683125
+    },
+    {
+      "year": 2024,
+      "month": 10,
+      "scene_count": 47,
+      "cloud_pct": 42.7463829787
+    },
+    {
+      "year": 2025,
+      "month": 7,
+      "scene_count": 46,
+      "cloud_pct": 20.4523913043
+    },
+    {
+      "year": 2025,
+      "month": 8,
+      "scene_count": 48,
+      "cloud_pct": 17.8258333333
+    },
+    {
+      "year": 2025,
+      "month": 9,
+      "scene_count": 34,
+      "cloud_pct": 57.565
+    },
+    {
+      "year": 2025,
+      "month": 10,
+      "scene_count": 40,
+      "cloud_pct": 32.9205
+    }
+  ],
+  "per_window_year": [
+    {
+      "year": 2000,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 48,
+      "cloud_pct": 15.0416666667
+    },
+    {
+      "year": 2001,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 46,
+      "cloud_pct": 20.7391304348
+    },
+    {
+      "year": 2002,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 31,
+      "cloud_pct": 8.8064516129
+    },
+    {
+      "year": 2003,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 13,
+      "cloud_pct": 24.1538461538
+    },
+    {
+      "year": 2004,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 43,
+      "cloud_pct": 26.2325581395
+    },
+    {
+      "year": 2005,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 43,
+      "cloud_pct": 19.8372093023
+    },
+    {
+      "year": 2006,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 80,
+      "cloud_pct": 17.325
+    },
+    {
+      "year": 2007,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 77,
+      "cloud_pct": 28.0909090909
+    },
+    {
+      "year": 2008,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 62,
+      "cloud_pct": 22.5
+    },
+    {
+      "year": 2009,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 75,
+      "cloud_pct": 35.04
+    },
+    {
+      "year": 2010,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 70,
+      "cloud_pct": 6.7714285714
+    },
+    {
+      "year": 2011,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 59,
+      "cloud_pct": 22.4745762712
+    },
+    {
+      "year": 2012,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 45,
+      "cloud_pct": 30.4666666667
+    },
+    {
+      "year": 2013,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 86,
+      "cloud_pct": 34.1988372093
+    },
+    {
+      "year": 2014,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 89,
+      "cloud_pct": 21.5419101124
+    },
+    {
+      "year": 2015,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 94,
+      "cloud_pct": 26.1888297872
+    },
+    {
+      "year": 2016,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 79,
+      "cloud_pct": 23.2349367089
+    },
+    {
+      "year": 2017,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 85,
+      "cloud_pct": 17.668
+    },
+    {
+      "year": 2018,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 88,
+      "cloud_pct": 33.3256818182
+    },
+    {
+      "year": 2019,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 85,
+      "cloud_pct": 21.4227058824
+    },
+    {
+      "year": 2020,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 85,
+      "cloud_pct": 40.9947058824
+    },
+    {
+      "year": 2021,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 89,
+      "cloud_pct": 29.1976404494
+    },
+    {
+      "year": 2022,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 80,
+      "cloud_pct": 20.920375
+    },
+    {
+      "year": 2023,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 129,
+      "cloud_pct": 19.9546511628
+    },
+    {
+      "year": 2024,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 92,
+      "cloud_pct": 30.7072826087
+    },
+    {
+      "year": 2025,
+      "start_month": 7,
+      "end_month": 8,
+      "scene_count": 94,
+      "cloud_pct": 19.1111702128
+    },
+    {
+      "year": 2000,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 58,
+      "cloud_pct": 31.3448275862
+    },
+    {
+      "year": 2001,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 44,
+      "cloud_pct": 15.75
+    },
+    {
+      "year": 2002,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 17,
+      "cloud_pct": 9.8823529412
+    },
+    {
+      "year": 2003,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 10,
+      "cloud_pct": 11.0
+    },
+    {
+      "year": 2004,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 44,
+      "cloud_pct": 18.0909090909
+    },
+    {
+      "year": 2005,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 33,
+      "cloud_pct": 15.3939393939
+    },
+    {
+      "year": 2006,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 88,
+      "cloud_pct": 14.125
+    },
+    {
+      "year": 2007,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 83,
+      "cloud_pct": 17.734939759
+    },
+    {
+      "year": 2008,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 42,
+      "cloud_pct": 28.2619047619
+    },
+    {
+      "year": 2009,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 74,
+      "cloud_pct": 37.1351351351
+    },
+    {
+      "year": 2010,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 50,
+      "cloud_pct": 10.52
+    },
+    {
+      "year": 2011,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 55,
+      "cloud_pct": 26.9090909091
+    },
+    {
+      "year": 2012,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 40,
+      "cloud_pct": 29.975
+    },
+    {
+      "year": 2013,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 87,
+      "cloud_pct": 39.7982758621
+    },
+    {
+      "year": 2014,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 86,
+      "cloud_pct": 17.6489534884
+    },
+    {
+      "year": 2015,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 93,
+      "cloud_pct": 19.168172043
+    },
+    {
+      "year": 2016,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 78,
+      "cloud_pct": 18.8346153846
+    },
+    {
+      "year": 2017,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 80,
+      "cloud_pct": 13.074125
+    },
+    {
+      "year": 2018,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 91,
+      "cloud_pct": 35.9118681319
+    },
+    {
+      "year": 2019,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 78,
+      "cloud_pct": 34.1516666667
+    },
+    {
+      "year": 2020,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 83,
+      "cloud_pct": 32.1936144578
+    },
+    {
+      "year": 2021,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 91,
+      "cloud_pct": 29.1126373626
+    },
+    {
+      "year": 2022,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 59,
+      "cloud_pct": 24.1327118644
+    },
+    {
+      "year": 2023,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 133,
+      "cloud_pct": 28.6903759398
+    },
+    {
+      "year": 2024,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 95,
+      "cloud_pct": 31.8126315789
+    },
+    {
+      "year": 2025,
+      "start_month": 8,
+      "end_month": 9,
+      "scene_count": 82,
+      "cloud_pct": 34.3030487805
+    },
+    {
+      "year": 2000,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 63,
+      "cloud_pct": 45.253968254
+    },
+    {
+      "year": 2001,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 47,
+      "cloud_pct": 22.085106383
+    },
+    {
+      "year": 2002,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 15,
+      "cloud_pct": 14.7333333333
+    },
+    {
+      "year": 2003,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 10,
+      "cloud_pct": 15.1
+    },
+    {
+      "year": 2004,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 30,
+      "cloud_pct": 29.1
+    },
+    {
+      "year": 2005,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 33,
+      "cloud_pct": 26.2121212121
+    },
+    {
+      "year": 2006,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 75,
+      "cloud_pct": 38.4
+    },
+    {
+      "year": 2007,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 59,
+      "cloud_pct": 20.3389830508
+    },
+    {
+      "year": 2008,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 45,
+      "cloud_pct": 41.6222222222
+    },
+    {
+      "year": 2009,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 82,
+      "cloud_pct": 29.7317073171
+    },
+    {
+      "year": 2010,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 38,
+      "cloud_pct": 34.8684210526
+    },
+    {
+      "year": 2011,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 47,
+      "cloud_pct": 26.5319148936
+    },
+    {
+      "year": 2012,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 40,
+      "cloud_pct": 28.925
+    },
+    {
+      "year": 2013,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 70,
+      "cloud_pct": 43.8335714286
+    },
+    {
+      "year": 2014,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 83,
+      "cloud_pct": 47.3372289157
+    },
+    {
+      "year": 2015,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 93,
+      "cloud_pct": 45.4440860215
+    },
+    {
+      "year": 2016,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 76,
+      "cloud_pct": 47.8506578947
+    },
+    {
+      "year": 2017,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 84,
+      "cloud_pct": 31.1961904762
+    },
+    {
+      "year": 2018,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 94,
+      "cloud_pct": 34.5269148936
+    },
+    {
+      "year": 2019,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 79,
+      "cloud_pct": 39.4481012658
+    },
+    {
+      "year": 2020,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 87,
+      "cloud_pct": 22.3816091954
+    },
+    {
+      "year": 2021,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 92,
+      "cloud_pct": 39.0225
+    },
+    {
+      "year": 2022,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 64,
+      "cloud_pct": 46.2140625
+    },
+    {
+      "year": 2023,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 137,
+      "cloud_pct": 45.4759124088
+    },
+    {
+      "year": 2024,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 95,
+      "cloud_pct": 39.1775789474
+    },
+    {
+      "year": 2025,
+      "start_month": 9,
+      "end_month": 10,
+      "scene_count": 74,
+      "cloud_pct": 44.2436486486
+    }
+  ],
+  "period": {
+    "start": 2000,
+    "end": 2025,
+    "years": [
+      2000,
+      2001,
+      2002,
+      2003,
+      2004,
+      2005,
+      2006,
+      2007,
+      2008,
+      2009,
+      2010,
+      2011,
+      2012,
+      2013,
+      2014,
+      2015,
+      2016,
+      2017,
+      2018,
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "dropped": [],
+    "min_landsat_dates": 3,
+    "min_grealm_dates": 3,
+    "per_year": [
+      {
+        "year": 2000,
+        "landsat_usable_dates": 18,
+        "grealm_dates": 7,
+        "qualifies": true
+      },
+      {
+        "year": 2001,
+        "landsat_usable_dates": 17,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2002,
+        "landsat_usable_dates": 13,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2003,
+        "landsat_usable_dates": 6,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2004,
+        "landsat_usable_dates": 16,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2005,
+        "landsat_usable_dates": 15,
+        "grealm_dates": 7,
+        "qualifies": true
+      },
+      {
+        "year": 2006,
+        "landsat_usable_dates": 28,
+        "grealm_dates": 7,
+        "qualifies": true
+      },
+      {
+        "year": 2007,
+        "landsat_usable_dates": 22,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2008,
+        "landsat_usable_dates": 21,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2009,
+        "landsat_usable_dates": 22,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2010,
+        "landsat_usable_dates": 24,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2011,
+        "landsat_usable_dates": 21,
+        "grealm_dates": 7,
+        "qualifies": true
+      },
+      {
+        "year": 2012,
+        "landsat_usable_dates": 13,
+        "grealm_dates": 7,
+        "qualifies": true
+      },
+      {
+        "year": 2013,
+        "landsat_usable_dates": 27,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2014,
+        "landsat_usable_dates": 28,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2015,
+        "landsat_usable_dates": 27,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2016,
+        "landsat_usable_dates": 26,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2017,
+        "landsat_usable_dates": 29,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2018,
+        "landsat_usable_dates": 24,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2019,
+        "landsat_usable_dates": 28,
+        "grealm_dates": 5,
+        "qualifies": true
+      },
+      {
+        "year": 2020,
+        "landsat_usable_dates": 24,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2021,
+        "landsat_usable_dates": 28,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2022,
+        "landsat_usable_dates": 27,
+        "grealm_dates": 6,
+        "qualifies": true
+      },
+      {
+        "year": 2023,
+        "landsat_usable_dates": 35,
+        "grealm_dates": 7,
+        "qualifies": true
+      },
+      {
+        "year": 2024,
+        "landsat_usable_dates": 29,
+        "grealm_dates": 7,
+        "qualifies": true
+      },
+      {
+        "year": 2025,
+        "landsat_usable_dates": 31,
+        "grealm_dates": 6,
+        "qualifies": true
+      }
+    ]
+  }
+}
