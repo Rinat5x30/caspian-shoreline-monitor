@@ -74,7 +74,18 @@ ORIENT_OFFSET_M = 300.0
 STORE_STEP_M = 50.0
 OBLIQUITY_HALF_M = 150.0
 PROFILE_MARGIN_M = 1500.0
-MAX_INVALID_SHARE = 0.20
+MIN_VALID_PROFILES = 30
+GEOMETRY_CAVEATS: dict[str, str] = {
+    "kura_delta": (
+        "only {above:.0%} of unflattened profile origins lie above -26.5 m in the DEM, so the "
+        "landward position of the origin relative to the 2000 shoreline is NOT demonstrated by "
+        "the DEM; checked per year on imagery (origin must not be water)"
+    ),
+    "gizilaghaj": (
+        "{wetland:.0%} of the 1 km land band is WorldCover wetland (class 90); shoreline "
+        "measurability at 30 m is a risk"
+    ),
+}
 INLAND_M: dict[str, float] = {
     "gizilaghaj": 10_000.0,
     "kura_delta": 6_000.0,
@@ -606,8 +617,8 @@ def profile_valid(profiles: list[Profile], is_water: WaterTest) -> list[bool]:
     return [bool(a and b) for a, b in zip(on_land, in_sea, strict=True)]
 
 
-def geometry_ok(n_invalid: int, n_total: int) -> bool:
-    return n_total > 0 and n_invalid / n_total <= MAX_INVALID_SHARE
+def geometry_ok(n_valid: int) -> bool:
+    return n_valid >= MIN_VALID_PROFILES
 
 
 def obliquity_deg(
@@ -631,12 +642,11 @@ def obliquity_deg(
     return out
 
 
-def _distance_to_line(p: Profile, line: LineString) -> float:
+def _distance_to_line(p: Profile, line: LineString, own_m: float) -> float:
+    """First crossing of the profile with the coast; own_m is its own station by construction."""
     hit = LineString([p.origin, profile_end(p)]).intersection(line)
     points = [g for g in getattr(hit, "geoms", [hit]) if isinstance(g, Point)]
-    if not points:
-        return math.nan
-    return min(math.dist(p.origin, (q.x, q.y)) for q in points)
+    return min([own_m, *(math.dist(p.origin, (q.x, q.y)) for q in points)])
 
 
 @dataclass(frozen=True)
@@ -692,7 +702,7 @@ def site_geometry(
             "end": list(profile_end(p)),
             "direction": [p.direction[0], p.direction[1]],
             "length_m": p.length_m,
-            "distance_to_coast_m": round(_distance_to_line(p, coast), 1),
+            "distance_to_coast_m": round(_distance_to_line(p, coast, inland_m), 1),
         }
         for p in kept
     ]
@@ -733,7 +743,7 @@ def _stat(values: list[float]) -> dict[str, float]:
     }
 
 
-def _geometry_row(geo: GeometryResult, flat_value: float) -> dict[str, Any]:
+def _geometry_row(geo: GeometryResult, flat_value: float, wetland_share: float) -> dict[str, Any]:
     dem = np.array(geo.origin_dem)
     unflat = np.isfinite(dem) & (np.abs(dem - flat_value) >= FLAT_TOL_M)
     n = int(unflat.sum())
@@ -742,8 +752,13 @@ def _geometry_row(geo: GeometryResult, flat_value: float) -> dict[str, Any]:
         return round(float((dem[unflat] > level).sum() / n), 3) if n else None
 
     dropped = len(geo.site.dropped_profiles)
+    above_brief = above(LEVEL_2000_BRIEF_M)
+    template = GEOMETRY_CAVEATS.get(geo.site.site_id, "none")
+    caveat = template.format(above=above_brief or 0.0, wetland=wetland_share)
     return {
-        "status": "ok" if geometry_ok(dropped, geo.total) else "FAILED GEOMETRY",
+        "status": "ok" if geometry_ok(len(geo.kept)) else "FAILED GEOMETRY",
+        "geometry_caveat": caveat,
+        "dropped_share": round(dropped / geo.total, 4) if geo.total else None,
         "inland_m": geo.site.inland_m,
         "profile_length_m": geo.site.profile_length_m,
         "coast_line_length_m": round(geo.site.reference_line.length, 1),
@@ -755,7 +770,7 @@ def _geometry_row(geo: GeometryResult, flat_value: float) -> dict[str, Any]:
         "obliquity_vs_raw_coast_deg": _stat(geo.obliquity),
         "distance_to_coast_m": _stat([r["distance_to_coast_m"] for r in geo.kept]),
         "origin_dem_not_flattened": n,
-        "origin_share_above_level_2000_brief": above(LEVEL_2000_BRIEF_M),
+        "origin_share_above_level_2000_brief": above_brief,
         "origin_share_above_flat_plus_rise": above(flat_value + LEVEL_RISE_2000_M),
     }
 
@@ -803,9 +818,16 @@ def run(run_date: date) -> dict[str, Any]:
             inland = INLAND_M[candidate.candidate_id]
             wide = build_layers((x, y), classes, caspian, transform, half_m=GEOMETRY_GRID_HALF_M)
             geo = site_geometry(candidate, wide, inland, verdict.deltaic, is_water)
-            row["geometry"] = _geometry_row(geo, diag["flat_value_m"])
-            if row["geometry"]["status"] == "ok":
-                sites.append({**site_to_dict(geo.site), "profiles": geo.kept})
+            geometry = _geometry_row(geo, diag["flat_value_m"], stats.wetland_share)
+            row["geometry"] = geometry
+            if geometry["status"] == "ok":
+                flags = {
+                    "dropped_share": geometry["dropped_share"],
+                    "profiles_total": geo.total,
+                    "flattened_dem_share": round(diag["flattened_share"], 4),
+                    "geometry_caveat": geometry["geometry_caveat"],
+                }
+                sites.append({**site_to_dict(geo.site), **flags, "profiles": geo.kept})
         rows.append(row)
         print(json.dumps({k: v for k, v in row.items() if k != "reason"}), flush=True)
     return {

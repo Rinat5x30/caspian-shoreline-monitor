@@ -38,7 +38,7 @@ from caspianwatch.site_selection import (
     site_geometry,
     smooth_line,
 )
-from caspianwatch.sites import Profile, Site, load_sites, make_profiles
+from caspianwatch.sites import DEFAULT_SITES, Profile, Site, load_sites, make_profiles
 from wheatwatch.climate import HttpStatusError
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "caspianwatch"
@@ -60,7 +60,7 @@ def test_thresholds_are_the_preregistered_values() -> None:
         "kura_delta": 6_000.0,
         "lankaran_astara": 3_000.0,
     }
-    assert sel.MAX_INVALID_SHARE == 0.20
+    assert sel.MIN_VALID_PROFILES == 30
 
 
 def test_rule_boundaries_are_inclusive() -> None:
@@ -375,10 +375,10 @@ def test_delta_lobe_profile_starting_in_sea_is_invalid() -> None:
     assert all(profile_valid(make_profiles(shallow), is_water))
 
 
-def test_invalid_share_rule() -> None:
-    assert geometry_ok(8, 40)
-    assert not geometry_ok(9, 40)
-    assert not geometry_ok(0, 0)
+def test_min_valid_profiles_rule() -> None:
+    assert not geometry_ok(29)
+    assert geometry_ok(30)
+    assert not geometry_ok(0)
 
 
 def test_obliquity_zero_on_straight_coast_and_45_on_skewed_profile() -> None:
@@ -445,3 +445,52 @@ def test_repository_profiles_start_on_land_and_end_in_sea() -> None:
                 lon, lat = sel._TO_LONLAT.transform([x for x, _ in points], [y for _, y in points])
                 values = [int(v[0]) for v in ds.sample(list(zip(lon, lat, strict=True)))]
                 assert all((v == 80) is water for v in values), site.site_id
+
+
+def test_invalid_profiles_are_dropped_and_counted() -> None:
+    layers = _straight_layers()
+    cand = sel.Candidate("syn", "Synthetic", 0.0, 0.0, False, "test")
+    sea_of = _water_of(layers)
+
+    def is_water(xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
+        return np.asarray(sea_of(xs, ys) | ((ys > 11_000.0) & (ys < 13_000.0)), dtype=bool)
+
+    result = site_geometry(cand, layers, 3000.0, False, is_water)
+    dropped = result.site.dropped_profiles
+    assert 8 <= len(dropped) <= 11
+    assert len(result.kept) + len(dropped) == result.total
+    assert {r["index"] for r in result.kept}.isdisjoint(dropped)
+    assert all(11_000.0 < y < 13_000.0 for y in (p.origin[1] for p in _all(result.site, dropped)))
+    row = sel._geometry_row(result, -28.0, 0.0)
+    assert row["profiles_dropped"] == len(dropped)
+    assert row["dropped_share"] == pytest.approx(len(dropped) / result.total, abs=1e-4)
+    assert row["status"] == "ok" and row["geometry_caveat"] == "none"
+    assert [p.index for p in make_profiles(result.site)] == [r["index"] for r in result.kept]
+
+
+def _all(site: Site, indices: tuple[int, ...]) -> list[Profile]:
+    full = Site(**{**site.__dict__, "dropped_profiles": ()})
+    return [p for p in make_profiles(full) if p.index in indices]
+
+
+def test_site_geometry_is_deterministic() -> None:
+    layers = _straight_layers()
+    cand = sel.Candidate("syn", "Synthetic", 0.0, 0.0, False, "test")
+    first = site_geometry(cand, layers, 3000.0, False, _water_of(layers))
+    second = site_geometry(cand, layers, 3000.0, False, _water_of(layers))
+    assert first.kept == second.kept and first.site == second.site
+
+
+def _caches_present() -> bool:
+    cache = sel.CACHE_DIR
+    return WORLDCOVER.exists() and cache.exists() and len(list(cache.glob("copdem_*.tif"))) >= 11
+
+
+@pytest.mark.skipif(not _caches_present(), reason="cached WorldCover / DEM rasters absent")
+def test_rerun_reproduces_stored_sites_json() -> None:
+    import json
+    from datetime import date
+
+    stored = json.loads(DEFAULT_SITES.read_text(encoding="utf-8"))
+    fresh = json.loads(json.dumps(sel.run(date.fromisoformat(stored["run_date"]))))
+    assert fresh == stored
