@@ -1,4 +1,5 @@
 import ast
+import json
 import math
 import os
 import subprocess
@@ -24,6 +25,7 @@ from caspianwatch.site_selection import (
     caspian_component,
     class_shares,
     coast_line,
+    crosses_open_sea,
     dem_diagnostics,
     evaluate,
     fetch_dem,
@@ -385,7 +387,15 @@ def test_obliquity_zero_on_straight_coast_and_45_on_skewed_profile() -> None:
     coast = LineString([(0.0, 10_000.0), (0.0, 0.0)])
     straight = Profile("s", 0, (-1000.0, 5000.0), (1.0, 0.0), 2500.0)
     skew = Profile("s", 1, (-1000.0, 5000.0), (math.sqrt(0.5), math.sqrt(0.5)), 2500.0)
-    assert obliquity_deg([straight, skew], coast) == pytest.approx([0.0, 45.0], abs=1e-6)
+    angles = obliquity_deg([straight, skew], coast, at_m=1000.0)
+    assert angles == pytest.approx([0.0, 45.0], abs=1e-6)
+
+
+def test_obliquity_is_measured_at_the_own_station() -> None:
+    # The profile first crosses a skewed spur at x=-500, then reaches its station on x=0.
+    coast = LineString([(-500.0, 4000.0), (-500.0, 6000.0), (0.0, 6500.0), (0.0, 0.0)])
+    p = Profile("s", 0, (-1000.0, 3000.0), (1.0, 0.0), 2500.0)
+    assert obliquity_deg([p], coast, at_m=1000.0) == pytest.approx([0.0], abs=1e-6)
 
 
 def test_dem_diagnostics_flattened_share_and_slope() -> None:
@@ -411,7 +421,7 @@ def test_site_geometry_on_straight_coast() -> None:
     assert result.site.dropped_profiles == () and result.crossings == 0
     assert max(result.obliquity) < 1.0
     for record in result.kept:
-        assert record["distance_to_coast_m"] == pytest.approx(3000.0, abs=31.0)
+        assert record["distance_to_coast_m"] == pytest.approx(3000.0, abs=1e-6)
         assert record["origin"][0] == pytest.approx(400 * PX - 3000.0, abs=1.0)
 
 
@@ -487,10 +497,98 @@ def _caches_present() -> bool:
 
 
 @pytest.mark.skipif(not _caches_present(), reason="cached WorldCover / DEM rasters absent")
+def test_stored_profiles_cross_no_open_sea_before_their_station() -> None:
+    classes, transform = sel._load_worldcover()
+    caspian = sel.caspian_component(classes, transform, sel.CASPIAN_SEED_LONLAT)
+    is_water = sel._worldcover_water(classes, transform)
+    rows = {
+        r["candidate_id"]: r for r in json.loads(DEFAULT_SITES.read_text("utf-8"))["candidates"]
+    }
+    for site in load_sites():
+        lat, lon = rows[site.site_id]["snapped_lat_lon"]
+        centre = sel._TO_UTM.transform(lon, lat)
+        wide = build_layers(centre, classes, caspian, transform, half_m=sel.GEOMETRY_GRID_HALF_M)
+        opened = open_sea(wide.sea, int(round(sel.OPEN_SEA_ERODE_M / sel.PIXEL_M)))
+
+        def is_open(
+            xs: np.ndarray, ys: np.ndarray, grid: Grid = wide.grid, mask: np.ndarray = opened
+        ) -> np.ndarray:
+            return sel._sample_mask(grid, mask, xs, ys)
+
+        assert not any(
+            crosses_open_sea(make_profiles(site), is_open, site.inland_m, is_water=is_water)
+        ), site.site_id
+
+
+@pytest.mark.skipif(not _caches_present(), reason="cached WorldCover / DEM rasters absent")
 def test_rerun_reproduces_stored_sites_json() -> None:
-    import json
     from datetime import date
 
     stored = json.loads(DEFAULT_SITES.read_text(encoding="utf-8"))
     fresh = json.loads(json.dumps(sel.run(date.fromisoformat(stored["run_date"]))))
     assert fresh == stored
+
+
+def _bay_layers(connected: bool) -> Layers:
+    sea = np.zeros((800, 800), dtype=bool)
+    sea[:, 400:] = True
+    sea[300:500, 310:345] = True
+    if connected:
+        sea[390:425, 345:400] = True
+    return _layers(sea)
+
+
+def test_profile_crossing_an_open_sea_bay_before_its_station_is_invalid() -> None:
+    layers = _bay_layers(connected=True)
+    opened = open_sea(layers.sea, int(round(sel.OPEN_SEA_ERODE_M / sel.PIXEL_M)))
+    assert opened[320:480, 320:335].all()
+    cand = sel.Candidate("bay", "Bay", 0.0, 0.0, False, "test")
+    result = site_geometry(cand, layers, 3000.0, False, _water_of(layers))
+    assert result.open_sea_dropped
+    assert set(result.open_sea_dropped) <= set(result.site.dropped_profiles)
+    assert len(result.kept) + len(result.site.dropped_profiles) == result.total
+    kept = make_profiles(result.site)
+
+    def is_open(xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
+        return sel._sample_mask(layers.grid, opened, xs, ys)
+
+    assert not any(crosses_open_sea(kept, is_open, 3000.0))
+    for record in result.kept:
+        assert record["distance_to_coast_m"] == pytest.approx(3000.0, abs=1e-6)
+
+
+def test_lagoon_between_origin_and_station_stays_valid() -> None:
+    layers = _bay_layers(connected=False)
+    cand = sel.Candidate("lag", "Lagoon", 0.0, 0.0, False, "test")
+    result = site_geometry(cand, layers, 3000.0, False, _water_of(layers))
+    assert result.open_sea_dropped == ()
+    assert result.site.dropped_profiles == ()
+    behind = [r for r in result.kept if 300 * PX < 800 * PX - r["origin"][1] < 500 * PX]
+    assert len(behind) >= 25
+
+
+def test_crosses_open_sea_ignores_the_sea_at_the_station() -> None:
+    p = Profile("s", 0, (0.0, 0.0), (1.0, 0.0), 1500.0)
+
+    def sea_from(x0: float) -> sel.WaterTest:
+        return lambda xs, ys: np.asarray(xs >= x0, dtype=bool)
+
+    def bay(xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
+        return np.asarray(((xs > 200.0) & (xs < 400.0)) | (xs >= 1000.0), dtype=bool)
+
+    assert crosses_open_sea([p], sea_from(1000.0), 1000.0) == [False]
+    assert crosses_open_sea([p], sea_from(950.0), 1000.0) == [False]
+    assert crosses_open_sea([p], bay, 1000.0) == [True]
+
+
+def test_crosses_open_sea_tolerates_non_open_water_in_the_station_run() -> None:
+    p = Profile("s", 0, (0.0, 0.0), (1.0, 0.0), 1500.0)
+
+    def is_open(xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
+        return np.asarray((xs >= 960.0) & ~((xs > 970.0) & (xs < 995.0)), dtype=bool)
+
+    def is_water(xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
+        return np.asarray(xs >= 960.0, dtype=bool)
+
+    assert crosses_open_sea([p], is_open, 1000.0) == [True]
+    assert crosses_open_sea([p], is_open, 1000.0, is_water=is_water) == [False]

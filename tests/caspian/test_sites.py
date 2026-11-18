@@ -7,6 +7,7 @@ import pytest
 from shapely.geometry import LineString, Point, Polygon, box
 
 from caspianwatch.sites import (
+    DEFAULT_SITES,
     MIN_SITES,
     Profile,
     Site,
@@ -198,6 +199,16 @@ def test_profile_is_frozen() -> None:
 def test_repository_sites_file_loads() -> None:
     sites = load_sites()
     assert len(sites) >= MIN_SITES
+    stored = {s["site_id"]: s for s in json.loads(DEFAULT_SITES.read_text("utf-8"))["sites"]}
     for site in sites:
-        assert make_profiles(site)
+        profiles = make_profiles(site)
+        assert len(profiles) >= 30
         assert site.inland_m > 0
+        for record in stored[site.site_id]["profiles"]:
+            assert record["distance_to_coast_m"] == pytest.approx(site.inland_m, abs=0.05)
+        for p in profiles:
+            station = (
+                p.origin[0] + p.direction[0] * site.inland_m,
+                p.origin[1] + p.direction[1] * site.inland_m,
+            )
+            assert site.reference_line.distance(Point(station)) == pytest.approx(0.0, abs=1e-6)

@@ -2351,8 +2351,8 @@
         ]
       ],
       "seaward": [
-        -0.36303733086717005,
-        -0.9317745952733637
+        -0.33492017095387144,
+        -0.9422465065407405
       ],
       "deltaic": true,
       "profile_length_m": 11500.0,
@@ -2363,12 +2363,20 @@
         7,
         8,
         9,
+        10,
+        21,
+        22,
         23,
         24,
+        25,
+        26,
+        27,
         30,
         31,
         32,
         33,
+        34,
+        35,
         36,
         37,
         38,
@@ -2387,8 +2395,15 @@
         60,
         61,
         62,
+        63,
         64,
         65,
+        68,
+        69,
+        76,
+        77,
+        79,
+        80,
         81,
         82,
         108,
@@ -2399,10 +2414,10 @@
         117,
         118
       ],
-      "dropped_share": 0.274,
+      "dropped_share": 0.3767,
       "profiles_total": 146,
       "flattened_dem_share": 0.8097,
-      "geometry_caveat": "81% of the 1 km land band is WorldCover wetland (class 90); shoreline measurability at 30 m is a risk",
+      "geometry_caveat": "81% of the 1 km land band is WorldCover wetland (class 90), shoreline measurability at 30 m is a risk; 15 profiles that crossed open sea before their own station were dropped; of the kept origins 41% of the non-flattened ones lie at or below -26.5 m and 22% sit on flattened DEM (-28.00 m), so the landward origin is not demonstrated everywhere (checked per year on imagery); seaward ends in lagoon water (class 80, not open sea): profile 59 (kept), profile 63 (dropped)",
       "profiles": [
         {
           "index": 0,
@@ -2488,23 +2503,6 @@
           ],
           "length_m": 11500.0,
           "distance_to_coast_m": 10000.0
-        },
-        {
-          "index": 10,
-          "origin": [
-            332329.0162249587,
-            4338729.651158821
-          ],
-          "end": [
-            338017.5123776883,
-            4328735.102068422
-          ],
-          "direction": [
-            0.49465183936779467,
-            -0.8690912252520201
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 157.5
         },
         {
           "index": 11,
@@ -2677,91 +2675,6 @@
           "distance_to_coast_m": 10000.0
         },
         {
-          "index": 21,
-          "origin": [
-            335270.40336321417,
-            4339787.763234233
-          ],
-          "end": [
-            335101.5703776074,
-            4328289.002630455
-          ],
-          "direction": [
-            -0.014681129183193494,
-            -0.9998922264153804
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 10000.0
-        },
-        {
-          "index": 22,
-          "origin": [
-            333333.0389611235,
-            4339653.058609839
-          ],
-          "end": [
-            335162.5101686524,
-            4328299.511362356
-          ],
-          "direction": [
-            0.15908445282859945,
-            -0.9872649780419769
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 5136.7
-        },
-        {
-          "index": 25,
-          "origin": [
-            333353.25601127185,
-            4339530.058315717
-          ],
-          "end": [
-            334512.51035417465,
-            4328088.636665919
-          ],
-          "direction": [
-            0.10080472546980837,
-            -0.994906230417197
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 1418.7
-        },
-        {
-          "index": 26,
-          "origin": [
-            336376.4432471152,
-            4339350.033643884
-          ],
-          "end": [
-            333831.24427374493,
-            4328135.223695162
-          ],
-          "direction": [
-            -0.22132164985828107,
-            -0.9752008651062654
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 10000.0
-        },
-        {
-          "index": 27,
-          "origin": [
-            335418.6177207779,
-            4339535.511151259
-          ],
-          "end": [
-            333750.7513535892,
-            4328157.10081496
-          ],
-          "direction": [
-            -0.14503185801641322,
-            -0.9894269857651482
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 5000.7
-        },
-        {
           "index": 28,
           "origin": [
             337616.02252913034,
@@ -2794,40 +2707,6 @@
           ],
           "length_m": 11500.0,
           "distance_to_coast_m": 10000.0
-        },
-        {
-          "index": 34,
-          "origin": [
-            343722.179738712,
-            4331100.747813737
-          ],
-          "end": [
-            332229.38059078134,
-            4330693.847647449
-          ],
-          "direction": [
-            -0.99937383895049,
-            -0.035382623155442675
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 6303.4
-        },
-        {
-          "index": 35,
-          "origin": [
-            343720.6815862454,
-            4330869.835220395
-          ],
-          "end": [
-            332221.02162838704,
-            4330958.270810674
-          ],
-          "direction": [
-            -0.9999704311181219,
-            0.0076900513286652095
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 6277.1
         },
         {
           "index": 39,
@@ -2983,23 +2862,6 @@
           "distance_to_coast_m": 10000.0
         },
         {
-          "index": 63,
-          "origin": [
-            330418.7712086049,
-            4343866.517243976
-          ],
-          "end": [
-            334614.13808688434,
-            4333159.094736358
-          ],
-          "direction": [
-            0.36481451115473335,
-            -0.9310802180537039
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 5720.9
-        },
-        {
           "index": 66,
           "origin": [
             336282.01980232075,
@@ -3032,40 +2894,6 @@
           ],
           "length_m": 11500.0,
           "distance_to_coast_m": 10000.0
-        },
-        {
-          "index": 68,
-          "origin": [
-            333074.5169814345,
-            4344275.147217985
-          ],
-          "end": [
-            333307.76813187037,
-            4332777.512943891
-          ],
-          "direction": [
-            0.02028270873355753,
-            -0.9997942847038233
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 5900.6
-        },
-        {
-          "index": 69,
-          "origin": [
-            334445.1533681577,
-            4344185.405789379
-          ],
-          "end": [
-            332872.45338328,
-            4332793.451841194
-          ],
-          "direction": [
-            -0.13675652042414663,
-            -0.9906046911465138
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 6517.1
         },
         {
           "index": 70,
@@ -3170,40 +2998,6 @@
           "distance_to_coast_m": 10000.0
         },
         {
-          "index": 76,
-          "origin": [
-            341741.4759060751,
-            4331648.71995999
-          ],
-          "end": [
-            331062.0206545534,
-            4335914.776163411
-          ],
-          "direction": [
-            -0.9286482827410188,
-            0.3709614089931146
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 7124.5
-        },
-        {
-          "index": 77,
-          "origin": [
-            341554.763698064,
-            4331211.23704985
-          ],
-          "end": [
-            331187.67753989965,
-            4336188.537984011
-          ],
-          "direction": [
-            -0.9014857528838603,
-            0.4328087768835325
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 7132.7
-        },
-        {
           "index": 78,
           "origin": [
             341767.41886519385,
@@ -3219,40 +3013,6 @@
           ],
           "length_m": 11500.0,
           "distance_to_coast_m": 10000.0
-        },
-        {
-          "index": 79,
-          "origin": [
-            340769.39760764834,
-            4329967.546686112
-          ],
-          "end": [
-            331508.93431202933,
-            4336786.184347001
-          ],
-          "direction": [
-            -0.8052576778799151,
-            0.5929250139903417
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 7034.0
-        },
-        {
-          "index": 80,
-          "origin": [
-            339663.3879680654,
-            4328721.005596607
-          ],
-          "end": [
-            331831.0648288859,
-            4337141.499302054
-          ],
-          "direction": [
-            -0.6810715773199568,
-            0.7322168439519172
-          ],
-          "length_m": 11500.0,
-          "distance_to_coast_m": 3120.9
         },
         {
           "index": 83,
@@ -8612,26 +8372,55 @@
       "reasons": [],
       "geometry": {
         "status": "ok",
-        "geometry_caveat": "81% of the 1 km land band is WorldCover wetland (class 90); shoreline measurability at 30 m is a risk",
-        "dropped_share": 0.274,
+        "geometry_caveat": "81% of the 1 km land band is WorldCover wetland (class 90), shoreline measurability at 30 m is a risk; 15 profiles that crossed open sea before their own station were dropped; of the kept origins 41% of the non-flattened ones lie at or below -26.5 m and 22% sit on flattened DEM (-28.00 m), so the landward origin is not demonstrated everywhere (checked per year on imagery); seaward ends in lagoon water (class 80, not open sea): profile 59 (kept), profile 63 (dropped)",
+        "dropped_share": 0.3767,
         "inland_m": 10000.0,
         "profile_length_m": 11500.0,
         "coast_line_length_m": 29113.0,
         "profiles_total": 146,
-        "profiles_kept": 106,
-        "profiles_dropped": 40,
+        "profiles_kept": 91,
+        "profiles_dropped": 55,
+        "dropped_open_sea_before_station": [
+          10,
+          21,
+          22,
+          25,
+          26,
+          27,
+          34,
+          35,
+          63,
+          68,
+          69,
+          76,
+          77,
+          79,
+          80
+        ],
+        "lagoon_end_indices": [
+          59,
+          63
+        ],
         "dropped_indices": [
           5,
           6,
           7,
           8,
           9,
+          10,
+          21,
+          22,
           23,
           24,
+          25,
+          26,
+          27,
           30,
           31,
           32,
           33,
+          34,
+          35,
           36,
           37,
           38,
@@ -8650,8 +8439,15 @@
           60,
           61,
           62,
+          63,
           64,
           65,
+          68,
+          69,
+          76,
+          77,
+          79,
+          80,
           81,
           82,
           108,
@@ -8662,22 +8458,22 @@
           117,
           118
         ],
-        "crossing_pairs": 1639,
-        "obliquity_vs_raw_coast_deg": {
-          "n": 106,
-          "median": 9.36,
-          "p90": 35.82,
-          "max": 68.1
+        "crossing_pairs": 1044,
+        "obliquity_at_station_vs_raw_coast_deg": {
+          "n": 91,
+          "median": 10.59,
+          "p90": 31.43,
+          "max": 56.28
         },
         "distance_to_coast_m": {
-          "n": 106,
+          "n": 91,
           "median": 10000.0,
           "p90": 10000.0,
           "max": 10000.0
         },
-        "origin_dem_not_flattened": 77,
-        "origin_share_above_level_2000_brief": 0.571,
-        "origin_share_above_flat_plus_rise": 0.623
+        "origin_dem_not_flattened": 71,
+        "origin_share_above_level_2000_brief": 0.592,
+        "origin_share_above_flat_plus_rise": 0.648
       }
     },
     {
@@ -8726,6 +8522,8 @@
         "profiles_total": 78,
         "profiles_kept": 35,
         "profiles_dropped": 43,
+        "dropped_open_sea_before_station": [],
+        "lagoon_end_indices": [],
         "dropped_indices": [
           33,
           34,
@@ -8772,11 +8570,11 @@
           77
         ],
         "crossing_pairs": 163,
-        "obliquity_vs_raw_coast_deg": {
+        "obliquity_at_station_vs_raw_coast_deg": {
           "n": 35,
-          "median": 6.05,
-          "p90": 21.82,
-          "max": 43.82
+          "median": 6.54,
+          "p90": 23.17,
+          "max": 45.34
         },
         "distance_to_coast_m": {
           "n": 35,
@@ -9035,13 +8833,15 @@
         "profiles_total": 74,
         "profiles_kept": 74,
         "profiles_dropped": 0,
+        "dropped_open_sea_before_station": [],
+        "lagoon_end_indices": [],
         "dropped_indices": [],
         "crossing_pairs": 6,
-        "obliquity_vs_raw_coast_deg": {
+        "obliquity_at_station_vs_raw_coast_deg": {
           "n": 74,
-          "median": 4.57,
-          "p90": 11.67,
-          "max": 18.48
+          "median": 4.91,
+          "p90": 12.68,
+          "max": 20.52
         },
         "distance_to_coast_m": {
           "n": 74,

@@ -34,6 +34,7 @@ from caspianwatch.cache import retry
 from caspianwatch.sites import (
     CRS,
     DEFAULT_SITES,
+    PROFILE_SPACING_M,
     TANGENT_HALF_M,
     Profile,
     Site,
@@ -82,8 +83,12 @@ GEOMETRY_CAVEATS: dict[str, str] = {
         "the DEM; checked per year on imagery (origin must not be water)"
     ),
     "gizilaghaj": (
-        "{wetland:.0%} of the 1 km land band is WorldCover wetland (class 90); shoreline "
-        "measurability at 30 m is a risk"
+        "{wetland:.0%} of the 1 km land band is WorldCover wetland (class 90), shoreline "
+        "measurability at 30 m is a risk; {open_dropped} profiles that crossed open sea before "
+        "their own station were dropped; of the kept origins {below:.0%} of the non-flattened "
+        "ones lie at or below -26.5 m and {flat:.0%} sit on flattened DEM ({flat_value:.2f} m), "
+        "so the landward origin is not demonstrated everywhere (checked per year on imagery); "
+        "seaward ends in lagoon water (class 80, not open sea): {lagoon}"
     ),
 }
 INLAND_M: dict[str, float] = {
@@ -622,18 +627,13 @@ def geometry_ok(n_valid: int) -> bool:
 
 
 def obliquity_deg(
-    profiles: list[Profile], coast: LineString, half_m: float = TANGENT_HALF_M
+    profiles: list[Profile], coast: LineString, half_m: float = TANGENT_HALF_M, *, at_m: float
 ) -> list[float]:
-    """Angle between each profile and the normal of `coast` where the profile first crosses it."""
+    """Angle between each profile and the normal of `coast` at the profile's own station."""
     out: list[float] = []
     for p in profiles:
-        hit = LineString([p.origin, profile_end(p)]).intersection(coast)
-        points = [g for g in getattr(hit, "geoms", [hit]) if isinstance(g, Point)]
-        if not points:
-            out.append(math.nan)
-            continue
-        first = min(points, key=lambda q: math.dist(p.origin, (q.x, q.y)))
-        s = coast.project(first)
+        station = Point(p.origin[0] + p.direction[0] * at_m, p.origin[1] + p.direction[1] * at_m)
+        s = coast.project(station)
         a = coast.interpolate(max(0.0, s - half_m))
         b = coast.interpolate(min(coast.length, s + half_m))
         tangent = np.array([b.x - a.x, b.y - a.y]) / math.dist((a.x, a.y), (b.x, b.y))
@@ -642,11 +642,35 @@ def obliquity_deg(
     return out
 
 
-def _distance_to_line(p: Profile, line: LineString, own_m: float) -> float:
-    """First crossing of the profile with the coast; own_m is its own station by construction."""
-    hit = LineString([p.origin, profile_end(p)]).intersection(line)
-    points = [g for g in getattr(hit, "geoms", [hit]) if isinstance(g, Point)]
-    return min([own_m, *(math.dist(p.origin, (q.x, q.y)) for q in points)])
+def crosses_open_sea(
+    profiles: list[Profile],
+    is_open: WaterTest,
+    station_m: float,
+    step_m: float = PIXEL_M / 2,
+    *,
+    is_water: WaterTest | None = None,
+) -> list[bool]:
+    """True if open sea lies between the origin and the station, apart from the sea at the station.
+
+    The water run that reaches the station itself is the coast the profile was cast from
+    (the 1 km smoothed station can sit a few pixels seaward of the pixel coast, and the opening
+    leaves single non-open water pixels along that edge).
+    """
+    d = np.append(np.arange(0.0, station_m, step_m), station_m)
+    out: list[bool] = []
+    for p in profiles:
+        xs, ys = p.origin[0] + d * p.direction[0], p.origin[1] + d * p.direction[1]
+        flags = is_open(xs, ys)
+        edge = flags | is_water(xs, ys) if is_water is not None else flags
+        end = len(flags)
+        while end > 0 and edge[end - 1]:
+            end -= 1
+        out.append(bool(flags[:end].any()))
+    return out
+
+
+def _xy(point: Point) -> tuple[float, float]:
+    return (point.x, point.y)
 
 
 @dataclass(frozen=True)
@@ -657,6 +681,8 @@ class GeometryResult:
     crossings: int
     obliquity: list[float]
     origin_dem: list[float]
+    open_sea_dropped: tuple[int, ...]
+    lagoon_ends: tuple[int, ...]
 
 
 def site_geometry(
@@ -680,7 +706,15 @@ def site_geometry(
         candidate.candidate_id, candidate.name, coast, (1.0, 0.0), deltaic, length, inland_m
     )
     profiles = make_profiles(draft)
-    valid = profile_valid(profiles, is_water)
+    ends_ok = profile_valid(profiles, is_water)
+    through_sea = crosses_open_sea(profiles, is_open, inland_m, is_water=is_water)
+    valid = [a and not b for a, b in zip(ends_ok, through_sea, strict=True)]
+    open_sea_dropped = tuple(
+        p.index for p, a, b in zip(profiles, ends_ok, through_sea, strict=True) if a and b
+    )
+    ends = np.array([profile_end(p) for p in profiles])
+    lagoon = is_water(ends[:, 0], ends[:, 1]) & ~is_open(ends[:, 0], ends[:, 1])
+    lagoon_ends = tuple(p.index for p, flag in zip(profiles, lagoon, strict=True) if flag)
     kept = [p for p, ok in zip(profiles, valid, strict=True) if ok]
     dropped = tuple(p.index for p, ok in zip(profiles, valid, strict=True) if not ok)
     mean_dir = np.mean([p.direction for p in kept or profiles], axis=0)
@@ -702,7 +736,9 @@ def site_geometry(
             "end": list(profile_end(p)),
             "direction": [p.direction[0], p.direction[1]],
             "length_m": p.length_m,
-            "distance_to_coast_m": round(_distance_to_line(p, coast, inland_m), 1),
+            "distance_to_coast_m": round(
+                math.dist(p.origin, _xy(coast.interpolate(p.index * PROFILE_SPACING_M))), 6
+            ),
         }
         for p in kept
     ]
@@ -713,8 +749,10 @@ def site_geometry(
         len(profiles),
         records,
         count_crossings(kept),
-        obliquity_deg(kept, raw_oriented, OBLIQUITY_HALF_M),
+        obliquity_deg(kept, raw_oriented, OBLIQUITY_HALF_M, at_m=inland_m),
         [float(v) for v in dem],
+        open_sea_dropped,
+        lagoon_ends,
     )
 
 
@@ -753,8 +791,20 @@ def _geometry_row(geo: GeometryResult, flat_value: float, wetland_share: float) 
 
     dropped = len(geo.site.dropped_profiles)
     above_brief = above(LEVEL_2000_BRIEF_M)
+    kept_ids = {r["index"] for r in geo.kept}
+    lagoon = ", ".join(
+        f"profile {i} ({'kept' if i in kept_ids else 'dropped'})" for i in geo.lagoon_ends
+    )
     template = GEOMETRY_CAVEATS.get(geo.site.site_id, "none")
-    caveat = template.format(above=above_brief or 0.0, wetland=wetland_share)
+    caveat = template.format(
+        above=above_brief or 0.0,
+        below=1.0 - (above_brief or 0.0),
+        wetland=wetland_share,
+        open_dropped=len(geo.open_sea_dropped),
+        flat=float((np.isfinite(dem) & ~unflat).sum() / dem.size) if dem.size else 0.0,
+        flat_value=flat_value,
+        lagoon=lagoon or "none",
+    )
     return {
         "status": "ok" if geometry_ok(len(geo.kept)) else "FAILED GEOMETRY",
         "geometry_caveat": caveat,
@@ -765,9 +815,11 @@ def _geometry_row(geo: GeometryResult, flat_value: float, wetland_share: float) 
         "profiles_total": geo.total,
         "profiles_kept": len(geo.kept),
         "profiles_dropped": dropped,
+        "dropped_open_sea_before_station": list(geo.open_sea_dropped),
+        "lagoon_end_indices": list(geo.lagoon_ends),
         "dropped_indices": list(geo.site.dropped_profiles),
         "crossing_pairs": geo.crossings,
-        "obliquity_vs_raw_coast_deg": _stat(geo.obliquity),
+        "obliquity_at_station_vs_raw_coast_deg": _stat(geo.obliquity),
         "distance_to_coast_m": _stat([r["distance_to_coast_m"] for r in geo.kept]),
         "origin_dem_not_flattened": n,
         "origin_share_above_level_2000_brief": above_brief,
