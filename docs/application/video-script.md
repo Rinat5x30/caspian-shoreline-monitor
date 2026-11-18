@@ -20,7 +20,7 @@ I compare it with official yields from the State Statistical Committee: sixty-si
 
 [Экран: раздел Validation plan]
 
-Here is the honest part. The back-test is not finished. I will leave out one year at a time, predict it from the other five, and report correlation, error, and how often we flag a bad year. If the signal is weak, I will say so.
+Here is the honest part. The back-test is not finished. I will leave out one year at a time, predict it from the other five, and report correlation, error, and how often I flag a bad year. If the signal is weak, I will say so.
 
 [Экран: раздел Limitations]
 

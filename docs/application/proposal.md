@@ -8,7 +8,7 @@ Team: I am a student, building this with an AI coding assistant. No external org
 
 Wheat is a key staple, and Azerbaijan depends on imports for much of it. On 26 May 2026 the President said the country is only 55% self-sufficient in wheat, as reported by Trend. The same Trend report, reproduced by UkrAgroConsult, gives domestic wheat output of 1.573 million tons and wheat imports of 1.267 million tons (https://ukragroconsult.com/?p=316982). FAO forecasts total cereal import requirements, mainly wheat, at 1.4 million tonnes for 2025/26 (FAO GIEWS country brief, reference date 30 April 2026: https://www.fao.org/giews/countrybrief/country.jsp?code=AZE).
 
-When a dry season cuts the domestic harvest, the gap may be covered by imports. We are not aware of an open district-level view of drought risk for wheat in Azerbaijan. We could not find a published district-level drought-risk product for Azerbaijani wheat; this describes our search, not a claim that none exists.
+When a dry season cuts the domestic harvest, the gap may be covered by imports. I am not aware of an open district-level view of drought risk for wheat in Azerbaijan. I could not find a published district-level drought-risk product for Azerbaijani wheat; this describes my search, not a claim that none exists.
 
 ## 2. Solution
 
@@ -39,7 +39,7 @@ The back-test is not finished, so no results are stated here. The plan:
 
 - Leave-one-year-out: for each of the six years, fit the model on the other five and predict the held-out year, for every district.
 - Metrics: Pearson correlation between predicted and observed yield anomaly, RMSE in percentage points, and the share of below-normal years correctly flagged.
-- Reporting rule: we publish whatever the test shows. A weak or null signal will be reported as such, together with the districts and cities where it fails.
+- Reporting rule: I publish whatever the test shows. A weak or null signal will be reported as such, together with the districts and cities where it fails.
 - Sensitivity check: repeat the test with the recently liberated districts removed, to see how much they affect the result.
 
 ## 6. What the prototype will show
@@ -51,10 +51,10 @@ A static web map (no server) with a district-coloured drought-risk layer for eac
 - Lead time: the time between a risk signal and harvest is not defined or tested; the index describes a season, not a forecast.
 - Six years of yield data: too few for a robust statistical relationship; estimates will be uncertain.
 - One composite predictor: it cannot separate the effects of heat, water shortage and vegetation stress.
-- Liberated districts: several recently liberated districts (for example Jabrayil, Lachin, Zangilan, Kalbajar, Gubadli, Khojaly) show low official yields that may reflect land being brought back into use rather than weather. We have not established the causes and will test the sensitivity of the result.
+- Liberated districts: several recently liberated districts (for example Jabrayil, Lachin, Zangilan, Kalbajar, Gubadli, Khojaly) show low official yields that may reflect land being brought back into use rather than weather. I have not established the causes and will test the sensitivity of the result.
 - MODIS resolution: pixels of hundreds of metres mix fields with other land, so field-scale conditions are not resolved.
 - No field-level validation: the check is against district yield statistics only. No farm measurements or user feedback are used.
-- The problem figures above come from a news agency report and an FAO brief. We did not find a source we could open for a quantified climate trend, so we do not state one.
+- The problem figures above come from a news agency report and an FAO brief. I did not find a source I could open for a quantified climate trend, so I do not state one.
 
 ## 8. Next steps (Build phase)
 
