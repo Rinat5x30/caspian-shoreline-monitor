@@ -3,7 +3,15 @@ name = "wheatwatch"
 version = "0.1.0"
 description = "Wheat drought early-warning map for Azerbaijan"
 requires-python = ">=3.12"
-dependencies = ["numpy", "pandas"]
+dependencies = [
+    "numpy",
+    "pandas",
+    "geopandas",
+    "shapely",
+    "rasterio",
+    "pystac-client",
+    "planetary-computer",
+]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "black", "mypy", "pandas-stubs"]
@@ -34,3 +42,7 @@ select = ["E", "F", "I", "UP", "B"]
 strict = true
 python_version = "3.12"
 mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["geopandas", "shapely.*", "rasterio", "rasterio.*", "planetary_computer", "pystac_client"]
+ignore_missing_imports = true

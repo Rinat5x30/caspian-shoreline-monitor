@@ -33,3 +33,21 @@
 - IAMO WP5 Report Azerbaijan (https://lsg.iamo.de/microsites/lsg.iamo.de/fileadmin/Dokumente/WP5_Report_Azerbaijan.pdf): таблиц урожайности нет; ссылается на районную статистику SSC 2000-2019, но сами данные не приводит.
 - IAMO TR_Azerbaijan.pdf: районного ряда урожайности пшеницы не найдено (поиск по тексту).
 - FEWS NET country book: страница по найденным ссылкам недоступна (404).
+
+# Геометрия районов и маска пашни (Task 3)
+
+## Границы
+
+geoBoundaries gbOpen, AZE ADM2 (79 единиц, год представления 2020, сборка 2023-12-12). API: https://www.geoboundaries.org/api/current/gbOpen/AZE/ADM2/. Исходник границ geoBoundaries: Wikipedia (administrative divisions of Azerbaijan), лицензия CC BY-SA 3.0; при публикации карты нужна атрибуция. Скачивается кодом в `data/raw/cache/` (в git не коммитится).
+
+Сопоставление: `region_aliases.csv` (`region_id,geometry_name`), составлено сверкой названий по реальному списку `shapeName`. Совпали все 66 id из `yields.csv`, ненайденных нет, исключений нет.
+
+Решения по неоднозначным названиям:
+- В ADM2 есть пары «City» и «District» для Shaki, Shusha, Yevlakh, Lankaran. В статистике для них один id без суффикса `-city` (города публикуются отдельными id только для Nakhchivan и Naftalan), поэтому `shaki`, `shusha`, `yevlakh`, `lankaran` сопоставлены с District (площади 2306/296/1278 км2 против 12-28 км2 у городов). Города Shaki, Shusha, Yevlakh, Lankaran City остаются без статистики и в карту не попадают.
+- Geometry «Lankaran District» встречается в ADM2 дважды (542 и 608 км2, два несмежных полигона, оба соприкасаются с Masally). Принято: `load_regions` объединяет (dissolve) все полигоны с одним `geometry_name` в один регион. Что это именно две части одного района, подтверждено только совпадением названия, не независимым источником.
+- Shusha: непонятно, относится ли значение статистики к району или к городу; выбран район (в нём есть пашня), допущение не проверено.
+
+## Маска пашни
+
+ESA WorldCover 2021 v200 (10 м), Microsoft Planetary Computer STAC, коллекция `esa-worldcover`, актив `map`, анонимный доступ через `planetary_computer.sign_inplace`. Класс 40 = Cropland. Кеш: `data/raw/cache/worldcover2021_cropland_az_100m.tif` (в git не коммитится).
+Растр пересэмплирован до сетки 1/1200 градуса (около 71 x 93 м на широте Азербайджана; файл 4 МБ, смоук-запуск 134 с) методом mode (мода класса в ячейке) и хранится как uint8-растр классов (0 = нет данных), bbox 44.7-50.7 E, 38.3-42.0 N (чуть шире страны). Полигоны районов маской не обрезаются.
