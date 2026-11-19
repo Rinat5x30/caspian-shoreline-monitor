@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Caspian Shoreline Monitor</title>
+  <meta name="description" content="Satellite shorelines of the Caspian Sea, 2000 to 2025, set against relative sea level, with the validation result shown as it is.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="css/caspian.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the sites</a>
+
+<header class="hero" id="top">
+  <div id="map" class="map" role="region" aria-label="Map of yearly shorelines"></div>
+  <p id="map-status" class="map-status" role="status" hidden></p>
+
+  <div class="hero-top">
+    <div class="brand">
+      <h1>Caspian Shoreline Monitor</h1>
+      <p class="tagline">Yearly satellite shorelines, 2000 to 2025, set against relative sea level.</p>
+    </div>
+    <button id="theme-toggle" class="chip-btn" type="button" aria-pressed="false">Light theme</button>
+    <a id="verdict-badge" class="verdict" href="#caveats" data-state="loading">
+      <span class="verdict-head">Loading data</span>
+      <span class="verdict-body">If this text stays, data/caspian-data.js was not found next to this page.</span>
+    </a>
+  </div>
+
+  <section class="dock" aria-label="Time controls">
+    <div class="year-block">
+      <output id="year-readout" for="year-slider" class="year-readout">2025</output>
+      <p id="year-note" class="year-note"></p>
+    </div>
+    <div class="scrub">
+      <button id="play-button" class="play" type="button" aria-label="Play the 2000 to 2025 animation">
+        <svg class="ic-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+        <svg class="ic-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+      </button>
+      <div class="slider-wrap">
+        <label class="sr-only" for="year-slider">Year</label>
+        <input id="year-slider" type="range" min="2000" max="2025" step="1" value="2025">
+        <div class="ticks" aria-hidden="true"><span>2000</span><span>2005</span><span>2010</span><span>2015</span><span>2020</span><span>2025</span></div>
+      </div>
+    </div>
+    <div class="dock-row">
+      <div id="site-switch" class="site-switch" role="group" aria-label="Site shown on the map"></div>
+      <button id="sat-toggle" class="chip-btn" type="button" aria-pressed="false">Satellite imagery</button>
+    </div>
+  </section>
+
+  <aside class="side">
+    <section id="numbers" class="numbers" aria-labelledby="numbers-title"></section>
+    <section id="legend" class="legend" aria-labelledby="legend-title"></section>
+  </aside>
+</header>
+
+<main id="main">
+  <section class="block" aria-labelledby="sites-title">
+    <h2 id="sites-title">Three sites, three verdicts</h2>
+    <p class="lede">Each card repeats what the pre-registered protocol returned for that site, with its own caveats.</p>
+    <div id="site-cards" class="cards"></div>
+  </section>
+
+  <section class="block" aria-labelledby="chart-title">
+    <h2 id="chart-title">Sea level against shoreline</h2>
+    <p id="chart-lede" class="lede"></p>
+    <div id="level-chart" class="chart"></div>
+  </section>
+
+  <section id="caveats" class="block caveats" aria-labelledby="caveats-title" tabindex="-1">
+    <h2 id="caveats-title">What this does and does not show</h2>
+    <div id="caveat-panel"></div>
+  </section>
+
+  <section class="block" aria-labelledby="sens-title">
+    <details id="sensitivity" class="sens">
+      <summary><span id="sens-title">Sensitivity table</span> <span class="tag">sensitivity only</span></summary>
+      <div id="sensitivity-body"></div>
+    </details>
+  </section>
+</main>
+
+<footer class="foot">
+  <div id="sources"></div>
+  <p class="prototype">The topic is already studied. This is a prototype by one student working with an AI coding assistant; no organisation is involved.</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="data/caspian-data.js"></script>
+<script src="js/caspian.js"></script>
+</body>
+</html>
