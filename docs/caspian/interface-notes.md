@@ -37,3 +37,14 @@ See `web/README.md` (data sources taken from `data.meta.sources`, plus Esri base
 
 Screenshots in `docs/caspian/screens/` (Playwright, file:// URL): 1440, 768 and 390 px, dark and light, years
 2000 and 2025; chart with the 2003 gap; full pages; offline fallback.
+
+## Fix round 1
+
+- Cards are rendered once; selecting a site only updates `aria-current` in place, so keyboard focus stays on the
+  pressed "Show on map" button (checked in the browser and by a node test of `markCurrent`).
+- Overall and sensitivity verdicts go through `verdictText`: a positive key is shown with the data label, so a bare
+  "confirmed" is never printed.
+- A one-line uncertainty note (from the same data strings as the legend) sits directly under the map at every width.
+- The metres-per-cm figure is neutral, labelled "protocol-conditional estimate" and sits right after the first caveat.
+- Smaller: count-neutral heading "Site verdicts", 44 px summaries, tile message only while no tile has loaded,
+  satellite toggle shows on/off, readout region `aria-live` is off during playback and polite when paused.

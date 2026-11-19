@@ -32,8 +32,9 @@
   </div>
 
   <section class="dock" aria-label="Time controls">
+    <p id="uncertainty-line" class="uncertainty-line"></p>
     <div class="year-block">
-      <output id="year-readout" for="year-slider" class="year-readout">2025</output>
+      <output id="year-readout" for="year-slider" class="year-readout" aria-live="off">2025</output>
       <p id="year-note" class="year-note"></p>
     </div>
     <div class="scrub">
@@ -54,14 +55,14 @@
   </section>
 
   <aside class="side">
-    <section id="numbers" class="numbers" aria-labelledby="numbers-title"></section>
+    <section id="numbers" class="numbers" aria-labelledby="numbers-title" aria-live="polite" aria-atomic="true"></section>
     <section id="legend" class="legend" aria-labelledby="legend-title"></section>
   </aside>
 </header>
 
 <main id="main">
   <section class="block" aria-labelledby="sites-title">
-    <h2 id="sites-title">Three sites, three verdicts</h2>
+    <h2 id="sites-title">Site verdicts</h2>
     <p class="lede">Each card repeats what the pre-registered protocol returned for that site, with its own caveats.</p>
     <div id="site-cards" class="cards"></div>
   </section>

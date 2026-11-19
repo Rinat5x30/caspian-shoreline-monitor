@@ -253,7 +253,7 @@ input[type="range"]:focus-visible { outline-offset: 0; }
 .scale { height: 12px; border-radius: 6px; background: var(--scale); }
 .scale-ends { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--muted); margin-top: 3px; }
 .legend details { margin-top: 10px; }
-summary { cursor: pointer; min-height: 32px; font-weight: 700; }
+summary { cursor: pointer; min-height: 44px; display: list-item; padding: 10px 0; box-sizing: border-box; font-weight: 700; }
 
 /* ---------- main ---------- */
 main { max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
@@ -285,7 +285,9 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
 .metrics dt { color: var(--muted); font-size: 0.8125rem; line-height: 1.25; }
 .metrics dd { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.mpc { padding: 10px 12px; border-left: 4px solid var(--positive-edge); background: var(--positive-bg); font-size: 0.95rem; }
+.mpc { padding: 10px 12px; border-left: 4px solid var(--neutral-edge); background: var(--neutral-bg); font-size: 0.95rem; }
+.mpc-label { display: block; color: var(--muted); font-size: 0.8125rem; }
+.uncertainty-line { font-size: 0.875rem; color: var(--muted); max-width: 70ch; }
 .qc { font-size: 0.875rem; color: var(--muted); }
 .qc span { color: var(--text); font-weight: 700; }
 .note { font-size: 0.9rem; }
@@ -358,7 +360,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
   .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dock { grid-template-columns: auto 1fr; align-items: center; column-gap: 28px; }
   .year-block { flex-direction: column; gap: 4px; }
-  .dock-row { grid-column: 1 / -1; }
+  .dock-row, .uncertainty-line { grid-column: 1 / -1; }
   .side { grid-template-columns: 1fr 1fr; }
 }
 

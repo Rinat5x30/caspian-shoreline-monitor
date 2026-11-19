@@ -42,3 +42,10 @@ Do not edit them by hand. Every verdict text on the page is built from this obje
   TomTom, Intermap, Garmin, FAO, NOAA, USGS, OpenStreetMap contributors.
 - Optional imagery: Esri World Imagery (Esri, Maxar, Earthstar Geographics and the GIS User Community).
 - Map library: Leaflet 1.9.4 (cdnjs). Fonts: Instrument Serif and Atkinson Hyperlegible (Google Fonts, SIL OFL).
+
+## Basemap tile services
+
+The basemaps use the legacy Esri tile endpoints on server.arcgisonline.com, which require visible
+attribution (shown in the map corner and in the footer). Esri's terms for heavy or commercial use may
+require an account or API key. This prototype is non-commercial and low-volume; replace the basemap
+if that changes. CARTO tiles were tried first and not used because they now require an API key.

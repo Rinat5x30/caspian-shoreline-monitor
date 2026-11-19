@@ -33,7 +33,12 @@ ALLOWED_HOSTS = {
     "basemaps.cartocdn.com",
     "server.arcgisonline.com",
 }
-FORBIDDEN = re.compile(r"\b(validated|proven|proof|demonstrates|successful)\b", re.IGNORECASE)
+FORBIDDEN = re.compile(
+    r"\b(validated|proven|proof|proves|demonstrates|successful|accurate|reliable)\b",
+    re.IGNORECASE,
+)
+DOCS = [WEB / "README.md", ROOT / "docs" / "caspian" / "interface-notes.md"]
+BARE_CONFIRMED = re.compile(r"(?<!not )confirmed(?! \(protocol\))", re.IGNORECASE)
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node is not installed")
 
@@ -134,6 +139,8 @@ def test_page_loads_only_allowed_cdn_hosts() -> None:
 def test_static_text_has_no_forbidden_words() -> None:
     for name, text in _all_text():
         assert not FORBIDDEN.search(text), name
+    for doc in DOCS:
+        assert not FORBIDDEN.search(doc.read_text(encoding="utf-8")), doc.name
 
 
 def test_static_text_confirmed_only_as_not_confirmed() -> None:
@@ -146,12 +153,6 @@ def test_verdict_words_not_hardcoded_in_html() -> None:
     html = HTML.read_text(encoding="utf-8").lower()
     assert "partial" not in html
     assert "not a validation" not in html
-
-
-def test_badge_text_built_from_data() -> None:
-    js = JS.read_text(encoding="utf-8")
-    assert "validation_note" in js
-    assert "overall" in js
 
 
 @needs_node
@@ -167,13 +168,13 @@ def test_verdict_text_on_page_matches_validation_note() -> None:
 
 def _all_not_confirmed(data: dict[str, Any]) -> dict[str, Any]:
     fixture = copy.deepcopy(data)
-    fixture["overall"].update({"verdict": "none", "n_confirmed": 0})
+    fixture["overall"].update({"verdict": "not_confirmed", "n_confirmed": 0})
     fixture["validation_note"] = (
-        "Overall verdict: none. 0 of 3 measurable sites reached the per-site protocol verdict. "
+        "Overall verdict: not confirmed. 0 of 3 measurable sites reached the protocol verdict. "
         "This is not a validation of the monitor. Per site: not confirmed (protocol)."
     )
     fixture["threshold_overall"] = {
-        k: {"overall": "none", "criterion_met_sites": [], "label": "sensitivity only"}
+        k: {"overall": "not_confirmed", "criterion_met_sites": [], "label": "sensitivity only"}
         for k in fixture["threshold_overall"]
     }
     for site in fixture["sites"]:
@@ -264,3 +265,93 @@ def test_css_has_theme_and_motion_rules() -> None:
     assert "prefers-reduced-motion" in css
     assert '[data-theme="light"]' in css
     assert ":focus-visible" in css
+
+
+@needs_node
+def test_fixture_badge_says_not_confirmed() -> None:
+    fixture = _all_not_confirmed(_load_data())
+    parts = _node("console.log(JSON.stringify(ui.badgeParts(data)));", fixture)
+    assert parts["head"] == "OVERALL: NOT CONFIRMED"
+    assert not BARE_CONFIRMED.search(parts["body"] + parts["notice"])
+    assert "20-22" not in json.dumps(parts)
+    assert parts["state"] == "negative"
+
+
+@needs_node
+def test_sensitivity_never_prints_bare_confirmed() -> None:
+    data = _load_data()
+    keys = {row["overall"] for row in data["threshold_overall"].values()}
+    assert "confirmed" in keys
+    html: str = _node("console.log(JSON.stringify(ui.sensitivityHtml(data)));", data)
+    assert "confirmed (protocol)" in html
+    assert not BARE_CONFIRMED.search(html)
+
+
+@needs_node
+def test_overall_confirmed_key_gets_protocol_label() -> None:
+    data = _load_data()
+    data["overall"]["verdict"] = "confirmed"
+    parts = _node("console.log(JSON.stringify(ui.badgeParts(data)));", data)
+    assert parts["head"] == "OVERALL: CONFIRMED (PROTOCOL)"
+
+
+@needs_node
+def test_body_counts_use_label() -> None:
+    data = _load_data()
+    parts = _node("console.log(JSON.stringify(ui.badgeParts(data)));", data)
+    assert parts["body"] == "1 of 3 sites confirmed (protocol)"
+
+
+@needs_node
+def test_mark_current_updates_in_place() -> None:
+    script = (
+        "const mk = id => { const a = {}; return { dataset: { site: id }, attrs: a,"
+        " setAttribute(k, v) { a[k] = v; }, removeAttribute(k) { delete a[k]; } }; };"
+        "const nodes = ['a', 'b', 'c'].map(mk);"
+        "ui.markCurrent(nodes, 'b');"
+        "console.log(JSON.stringify(nodes.map(n => n.attrs)));"
+    )
+    attrs = _node(script, {})
+    assert attrs == [{}, {"aria-current": "true"}, {}]
+
+
+def test_cards_not_rebuilt_on_site_change() -> None:
+    js = JS.read_text(encoding="utf-8")
+    assert js.count("$('site-cards').innerHTML") == 1
+    body = js[js.index("function renderSite") : js.index("function applyTheme")]
+    assert "site-cards').innerHTML" not in body
+
+
+@needs_node
+def test_card_caveat_precedes_estimate_and_qc() -> None:
+    data = _load_data()
+    script = "console.log(JSON.stringify(ui.cardHtml(data.sites[0], data, data.sites[0].id)));"
+    card: str = _node(script, data)
+    first = card.index('class="note first"')
+    mpc = card.index('class="mpc"')
+    qc = card.index('class="qc"')
+    assert first < mpc < qc
+    assert "protocol-conditional estimate" in card
+
+
+@needs_node
+def test_uncertainty_line_from_data() -> None:
+    data = _load_data()
+    line: str = _node("console.log(JSON.stringify(ui.uncertaintyLine(data)));", data)
+    assert f"±{int(data['meta']['uncertainty_m'])} m at least" in line
+    assert "100-200 m" in line
+    assert "reviewers" in line
+
+
+def test_html_has_uncertainty_line_and_live_region() -> None:
+    html = HTML.read_text(encoding="utf-8")
+    assert 'id="uncertainty-line"' in html
+    assert re.search(r'id="numbers"[^>]*aria-live="polite"', html)
+    assert "Three sites, three verdicts" not in html
+
+
+def test_summary_tap_target_and_readme_esri_note() -> None:
+    css = CSS.read_text(encoding="utf-8")
+    assert re.search(r"summary\s*\{[^}]*min-height:\s*44px", css)
+    readme = (WEB / "README.md").read_text(encoding="utf-8")
+    assert "attribution" in readme.lower() and "API key" in readme

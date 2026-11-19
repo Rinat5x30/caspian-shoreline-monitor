@@ -31,6 +31,33 @@
     return 'neutral';
   }
 
+  function verdictText(key, data) {
+    const k = String(key || '');
+    if (verdictKind(k) === 'positive') {
+      const hit = (data.sites || []).find(function (s) {
+        return verdictKind(s.report && s.report.verdict) === 'positive';
+      });
+      return hit ? hit.report.verdict_label : k.replace(/_/g, ' ') + ' (protocol)';
+    }
+    return k.replace(/_/g, ' ');
+  }
+
+  function markCurrent(nodes, siteId) {
+    nodes.forEach(function (node) {
+      if (node.dataset.site === siteId) node.setAttribute('aria-current', 'true');
+      else node.removeAttribute('aria-current');
+    });
+  }
+
+  function uncertaintyLine(data) {
+    const m = data.meta || {};
+    const noise = (data.sites || []).filter(function (s) { return s.noise_floor_note; }).map(function (s) {
+      const range = String(s.noise_floor_note).split(' annual')[0];
+      return s.name.split(' (')[0] + ': annual noise floor ' + range + ' (reviewers’ estimate)';
+    });
+    return 'Lines are ±' + m.uncertainty_m + ' m at least' + (noise.length ? '; ' + noise.join('; ') : '') + '.';
+  }
+
   function badgeParts(data) {
     const overall = data.overall || {};
     const note = String(data.validation_note || '');
@@ -42,12 +69,12 @@
     const label = positive ? positive.report.verdict_label : '';
     const n = overall.n_confirmed;
     const body = n > 0 && label
-      ? n + ' of ' + overall.n_measurable + ' sites: ' + label
+      ? n + ' of ' + overall.n_measurable + ' sites ' + label
       : n + ' of ' + overall.n_measurable + ' sites reached the protocol verdict';
     const key = String(overall.verdict || '');
     const state = key === 'partial' ? 'partial' : verdictKind(key);
     return {
-      head: 'OVERALL: ' + key.replace(/_/g, ' ').toUpperCase(),
+      head: 'OVERALL: ' + verdictText(key, data).toUpperCase(),
       body: body,
       notice: notice,
       state: state,
@@ -216,9 +243,12 @@
       '<div><dt>Years / pairs</dt><dd>' + esc(r.n_years) + ' / ' + esc(r.n_pairs) + '</dd></div>' +
       '<div><dt>Exposed area, whole grid</dt><dd>' + esc(fmt(site.exposed_km2 && site.exposed_km2.whole_site_grid, 1, 'km²')) + '</dd></div>' +
       '</dl>' +
-      (metres ? '<p class="mpc"><strong>' + esc(metres) + '</strong> of retreat per cm of level fall</p>' : '') +
-      '<p class="qc"><span>Optical consistency check</span> ' + esc(qcHtml(site.qc)) + '</p>' +
       (notes.length ? '<p class="note first">' + esc(notes[0]) + '</p>' : '') +
+      (metres
+        ? '<p class="mpc"><span class="mpc-label">protocol-conditional estimate</span><strong>' + esc(metres) +
+          '</strong> of retreat per cm of level fall</p>'
+        : '') +
+      '<p class="qc"><span>Optical consistency check</span> ' + esc(qcHtml(site.qc)) + '</p>' +
       (more.length
         ? '<details><summary>' + more.length + ' more caveat' + (more.length > 1 ? 's' : '') + '</summary><ul>' +
           more.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></details>'
@@ -260,7 +290,7 @@
     const rows = Object.keys(data.threshold_overall || {}).map(function (k) {
       const t = data.threshold_overall[k];
       const met = (t.criterion_met_sites || []).map(function (id) { return names[id] || id; });
-      return '<tr><th scope="row">' + esc(k) + '</th><td>' + esc(t.overall) + '</td><td>' +
+      return '<tr><th scope="row">' + esc(k) + '</th><td>' + esc(verdictText(t.overall, data)) + '</td><td>' +
         esc(met.length ? met.join(', ') : 'none') + '</td><td>' + esc(t.label) + '</td></tr>';
     });
     return '<table><caption>Overall result when the water threshold is fixed instead of chosen per image. These rows do not replace the protocol verdict.</caption>' +
@@ -270,16 +300,12 @@
 
   function legendHtml(data) {
     const m = data.meta || {};
-    const noise = (data.sites || []).filter(function (s) { return s.noise_floor_note; }).map(function (s) {
-      const range = String(s.noise_floor_note).split(' annual')[0];
-      return s.name.split(' (')[0] + ': annual noise floor ' + range + ' (reviewers’ estimate)';
-    });
     const years = (m.period || [2000, 2025]);
     return '<h2 id="legend-title">How to read the lines</h2>' +
       '<div class="scale" aria-hidden="true"></div>' +
       '<div class="scale-ends"><span>' + years[0] + '</span><span>' + years[1] + '</span></div>' +
       '<p>One line per year: the water edge in July and August. The bright line is the selected year; fainter lines are earlier years.</p>' +
-      '<p class="unc">Lines are ±' + esc(m.uncertainty_m) + ' m at least (one Landsat pixel). ' + esc(noise.join('; ')) + '.</p>' +
+      '<p class="unc">' + esc(uncertaintyLine(data)) + ' One Landsat pixel is 30 m.</p>' +
       '<details><summary>What the protocol verdict means</summary>' +
       '<p>Each site gets one label from a test fixed before the data were opened. It asks whether the sea level model beats a plain time trend, whether the lower bound of the bootstrap interval is above zero, and whether r_diff reaches ' + esc(m.r_diff_min) + '.</p>' +
       '<p>The label describes this one test on one site. It is not a measure of accuracy.</p></details>';
@@ -315,6 +341,7 @@
     linePath: linePath, niceTicks: niceTicks, numbersModel: numbersModel, chartSvg: chartSvg,
     cardHtml: cardHtml, panelHtml: panelHtml, sensitivityHtml: sensitivityHtml,
     legendHtml: legendHtml, sourcesHtml: sourcesHtml, numbersHtml: numbersHtml,
+    verdictText: verdictText, markCurrent: markCurrent, uncertaintyLine: uncertaintyLine,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof document === 'undefined' || !window.CASPIAN_DATA) return;
@@ -373,7 +400,7 @@
       : { padding: [32, 32], maxZoom: 13 };
   }
 
-  function createLeafletMap(el, onTileError) {
+  function createLeafletMap(el, onTileError, onTileLoad) {
     const L = window.L;
     const map = L.map(el, { zoomSnap: 0.25, zoomDelta: 0.5, minZoom: 4, maxZoom: 17 });
     const esri = function (service, native, credit) {
@@ -387,7 +414,7 @@
       light: esri('Canvas/World_Light_Gray_Base', 16, canvasCredit),
       sat: esri('World_Imagery', 17, 'Tiles © Esri, Maxar, Earthstar Geographics and the GIS User Community'),
     };
-    Object.keys(bases).forEach(function (k) { bases[k].on('tileerror', onTileError); });
+    Object.keys(bases).forEach(function (k) { bases[k].on('tileerror', onTileError); bases[k].on('tileload', onTileLoad); });
     const groups = {};
     const layers = {};
     data.sites.forEach(function (site) {
@@ -489,14 +516,26 @@
 
   let view = null;
   let tileErrors = 0;
+  let tileLoaded = false;
+
+  function onTileLoad() {
+    tileLoaded = true;
+    tileErrors = 0;
+    if (window.L) $('map-status').hidden = true;
+  }
 
   function onTileError() {
     tileErrors++;
-    if (tileErrors === 6) {
+    if (!tileLoaded && tileErrors === 6) {
       const s = $('map-status');
       s.textContent = 'Basemap tiles are not loading. Shorelines are shown on a plain background.';
       s.hidden = false;
     }
+  }
+
+  function satLabel() {
+    $('sat-toggle').textContent = 'Satellite imagery: ' + (state.sat ? 'on' : 'off');
+    $('sat-toggle').setAttribute('aria-pressed', String(state.sat));
   }
 
   function paintScale() {
@@ -525,7 +564,7 @@
     document.querySelectorAll('#site-switch button').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.site === state.site));
     });
-    $('site-cards').innerHTML = data.sites.map(function (s) { return cardHtml(s, data, state.site); }).join('');
+    markCurrent(Array.from(document.querySelectorAll('#site-cards .card')), state.site);
     $('chart-lede').textContent = site.name + '. Years with no value are left as gaps in the lines.';
     if (view) view.setSite(state.site, animate);
     renderYear();
@@ -548,7 +587,8 @@
     state.playing = on;
     $('play-button').classList.toggle('is-playing', on);
     $('play-button').setAttribute('aria-label', on ? 'Pause the animation' : 'Play the 2000 to 2025 animation');
-    if (!on) { cancelAnimationFrame(rafId); return; }
+    $('numbers').setAttribute('aria-live', on ? 'off' : 'polite');
+    if (!on) { cancelAnimationFrame(rafId); renderYear(); return; }
     if (state.year >= Y1) { state.year = Y0; renderYear(); }
     let last = performance.now();
     const step = 520;
@@ -583,13 +623,15 @@
       return '<button type="button" class="chip-btn" data-site="' + esc(s.id) + '" aria-pressed="false">' + esc(s.name.split(' (')[0].split(',')[0]) + '</button>';
     }).join('');
 
-    view = window.L ? createLeafletMap($('map'), onTileError) : createSvgMap($('map'));
+    view = window.L ? createLeafletMap($('map'), onTileError, onTileLoad) : createSvgMap($('map'));
     if (!window.L) {
       const s = $('map-status');
       s.textContent = 'The map library could not be loaded. Shorelines are shown on a plain background.';
       s.hidden = false;
     }
-    $('sat-toggle').setAttribute('aria-pressed', 'true');
+    satLabel();
+    $('uncertainty-line').textContent = uncertaintyLine(data);
+    $('site-cards').innerHTML = data.sites.map(function (s) { return cardHtml(s, data, state.site); }).join('');
     applyTheme(initialTheme());
     renderSite(false);
 
@@ -607,7 +649,7 @@
     });
     $('sat-toggle').addEventListener('click', function () {
       state.sat = !state.sat;
-      $('sat-toggle').setAttribute('aria-pressed', String(state.sat));
+      satLabel();
       if (view) view.setBase(state.theme, state.sat);
     });
     document.addEventListener('click', function (e) {
