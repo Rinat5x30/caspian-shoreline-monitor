@@ -4,3 +4,8 @@ __pycache__/
 *.pyc
 data/raw/cache/
 .playwright-mcp/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.env
+*.log

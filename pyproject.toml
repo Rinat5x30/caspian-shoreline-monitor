@@ -3,6 +3,9 @@ name = "wheatwatch"
 version = "0.1.0"
 description = "Wheat drought early-warning map for Azerbaijan"
 requires-python = ">=3.12"
+license = { text = "MIT" }
+readme = "README.md"
+authors = [{ name = "Rinat Aghayev" }]
 dependencies = [
     "numpy",
     "pandas",
